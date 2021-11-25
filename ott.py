@@ -1,17 +1,8 @@
 import sys
-import threading
-import socket
+from server import Server
+from node import Node
 
 
-def listener(name,conn,addr):
-
-    print('Connected by', addr)
-    while True:
-        data = conn.recv(1024)
-        if not data:
-            break
-        print(data)
-        conn.sendall(data)
 
 def main():
     
@@ -19,17 +10,16 @@ def main():
     if "-s" in params:
         HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
         PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((HOST, PORT))
-        while True:       
-            print("Listening at ")
-            s.listen()
-            conn, addr = s.accept()
-            
-            x = threading.Thread(target=listener, args=("listener",conn,addr))
-            x.start()
-        
-    elif len(params) == 1:
+        server = Server(HOST,PORT)
+        server.start()
+    elif "-d" in params:
+        pass
+    
+    elif len(params) > 0:
+        port = 65432
+        annport = 23456
+        node = Node(params,port,annport)
+        """
         serverIp = params[0]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((serverIp,65432))
@@ -38,6 +28,6 @@ def main():
             s.sendall(bytes(inp,encoding='utf8'))
             inp = input("What to say: ")
         
-        
+        """
 
 main()
