@@ -2,9 +2,10 @@ import socket
 import threading
 
 from packet import Packet
-from lib_colors import printInfo
+from lib_colors import *
 from table import Table
-#from lib_colors import colors
+from debugger import Debugger
+
 
 
 ANNOUNCEMENT = '1'
@@ -22,6 +23,14 @@ class Server:
 #   Worker for thread
 #   Listens for connections and decides what to do depending on type of the packet
     def listener(self,name,conn,addr):
+        
+        # Debugger
+        printInfo("server","Initializing debugger ...")
+        debugger = Debugger(self.table)
+        debugger.start()
+        printSuccess("debugger","Initialization sucessful")
+        
+        
         print('Connected by', addr)
         while True:
             data = conn.recv(1024)

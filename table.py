@@ -16,13 +16,17 @@ class Table:
     DEFAULT_PORT = 65432
     DEFAULT_ANNOUNCEMENT_PORT = 23456
     def __init__(self,params=None):
-        if params == None:
-            self.table = {}
-        else:
+        self.table = {}
+        if params != None:
             for ip in params:
                 if ip not in self.table:
                     self.table[ip] = {"next_hop":ip,"port":Table.DEFAULT_PORT,"announcement_port":Table.DEFAULT_ANNOUNCEMENT_PORT,"cost":1,"active":False}
-                    
+                
+                
+    def get_table(self):
+        return self.table
+    
+        
     # addr -> de onde veio a nova table
     # host -> self ip
     def updateTable(self,host,addr,otherTable):
@@ -60,3 +64,5 @@ class Table:
                 self.table[ip] = {"next_hop":addr,"port":otherTable[ip]["port"],"announcement_port":otherTable[ip]["announcement_port"],"cost":(otherTable[ip]["cost"]+1),"active":False}
                 printInfo("table",("Created new entry\nTable Updated:\n"+str(self.table)))
                 pass
+            
+    value = property(get_table)

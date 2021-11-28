@@ -3,7 +3,6 @@ from server import Server
 from node import Node
 
 
-
 def main():
     
     params = sys.argv[1:]
@@ -12,6 +11,7 @@ def main():
         PORT = 23456        # Port to listen on (non-privileged ports are > 1023)
         server = Server(PORT)
         server.start()
+
     elif "-d" in params:
         pass
     
