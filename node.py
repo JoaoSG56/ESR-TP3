@@ -1,8 +1,12 @@
 import socket
 import threading
 
+from packet import Packet
+
 class Node:
-    def __init__(self,params,port,annport):
+    def __init__(self,params):
+        annport = 23456
+        port = 65432
         self.table = {}
         """
         table:
@@ -22,6 +26,21 @@ class Node:
                 self.table[ip] = {"next_hop":ip,"port":port,"announcement_port":annport,"cost":1,"active":False}
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print(self.table)
+        
+    def start(self):
+
+        for ipv in self.table:
+            print("found 1 ip ...") 
+            print(ipv)
+            print(self.table[ipv]["announcement_port"])
+            try:
+                self.socket.connect((ipv,self.table[ipv]["announcement_port"]))
+                print("connected")
+                self.socket.sendall(Packet(type=1,ip=ipv,port=self.table[ipv]["announcement_port"],payload=self.table).packetToBytes())
+                print("sended ...")
+                self.socket.close()
+            except socket.error as exc:
+                print(f"Caught exception socket.error : {exc}")
         
         
         
