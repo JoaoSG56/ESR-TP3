@@ -9,6 +9,7 @@ class Packet:
         else:
             self.bytesToPacket(kwargs.get("bytes"))
 
+
     def getType(self):
         return self.type
 
