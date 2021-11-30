@@ -10,20 +10,36 @@ from debugger import Debugger
 
 ANNOUNCEMENT = '1'
 class Server:
-    def __init__(self,port):
+    def __init__(self,port,annport):
         hostname = socket.gethostname()
         print(hostname)
         local_ip = socket.gethostbyname(hostname)
         self.host = local_ip
         self.port = port
+        self.annport = annport
     
         self.table = Table()
     
     
 #   Worker for thread
 #   Listens for connections and decides what to do depending on type of the packet
-    def listener(self,name,conn,addr):
-        
+    def portListener(self,name):
+        self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.annSocket.bind((self.host, self.annport))
+
+     
+        while True:
+            self.annSocket.listen()
+            conn, addr = self.annSocket.accept()
+            print('[PORTLISTENER] Connected by', addr)
+            data = conn.recv(1024)
+            if not data:
+                break
+            packet = Packet(bytes=data)
+            if packet.type == ANNOUNCEMENT:
+                self.table.updateTable(self.host,addr[0],packet.payload)
+                
+    def dataListener(self,name,conn,addr):
         # Debugger
         printInfo("server","Initializing debugger ...")
         debugger = Debugger(self.table)
@@ -39,14 +55,21 @@ class Server:
             packet = Packet(bytes=data)
             if packet.type == ANNOUNCEMENT:
                 self.table.updateTable(self.host,addr[0],packet.payload)
+            else:
+                pass
+                
+
                 
     def start(self):
+        datathread = threading.Thread(target=self.portListener,args=("portlistener"))
+        datathread.start()
+        
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         while True:       
-            print("Listening at " + self.host)
+            print("[ANNOUNCEMENT PORT] Listening at " + self.host)
             self.socket.listen()
             conn, addr = self.socket.accept()
             
-            x = threading.Thread(target=self.listener, args=("listener",conn,addr))
+            x = threading.Thread(target=self.dataListener, args=("listener",conn,addr))
             x.start()
