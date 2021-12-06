@@ -30,6 +30,7 @@ class Table:
     # addr -> de onde veio a nova table
     # host -> self ip
     def updateTable(self,host,addr,otherTable):
+        changed = False
         if addr not in self.table:
             print(addr)
             # Active é iniciado sempre a False para não compremeter fluxos já a correr | rever isto
@@ -37,6 +38,7 @@ class Table:
             printInfo("table","Creating new entry > addr not in selfTable...")
             self.table[addr] = {"next_hop":addr,"port":Table.DEFAULT_PORT,"announcement_port":Table.DEFAULT_ANNOUNCEMENT_PORT,"cost":1,"active":False}
             printInfo("table",("Created new entry\nTable Updated:\n"+str(self.table)))
+            changed = True
 
         for ip in otherTable:
             # se o caminho mais rápido for o meu, então ignora
@@ -53,6 +55,7 @@ class Table:
                     printInfo("table",("Updating table ... "+str(self.table[ip]["cost"]) + " -> " + str(otherTable[ip]["cost"])))
                     self.table[ip] = {"next_hop":addr,"port":otherTable[ip]["port"],"announcement_port":otherTable[ip]["announcement_port"],"cost":(otherTable[ip]["cost"]+1),"active":False}
                     printInfo("table",("Updated table\nTable Updated:\n"+str(self.table)))
+                    changed = True
                     pass
                 else:
                     printInfo("table",("Custo não compensou\nOtherTableCost: "+str(otherTable[ip]["cost"])+"\nSelfTable: " + str(self.table[ip]["cost"])))
@@ -63,6 +66,8 @@ class Table:
                 printInfo("table","Creating new entry ...")
                 self.table[ip] = {"next_hop":addr,"port":otherTable[ip]["port"],"announcement_port":otherTable[ip]["announcement_port"],"cost":(otherTable[ip]["cost"]+1),"active":False}
                 printInfo("table",("Created new entry\nTable Updated:\n"+str(self.table)))
+                changed = True
                 pass
+        return changed
             
     value = property(get_table)

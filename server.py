@@ -5,10 +5,9 @@ from packet import Packet
 from lib_colors import *
 from table import Table
 from debugger import Debugger
+import globals
 
 
-
-ANNOUNCEMENT = '1'
 class Server:
     def __init__(self,port,annport):
         hostname = socket.gethostname()
@@ -36,8 +35,9 @@ class Server:
             if not data:
                 break
             packet = Packet(bytes=data)
-            if packet.type == ANNOUNCEMENT:
+            if packet.type == globals.ANNOUNCEMENT or packet.type == globals.ANNOUCEMENTANDGET:
                 self.table.updateTable(self.host,addr[0],packet.payload)
+
                 
     def dataListener(self,name,conn,addr):
         # Debugger
@@ -53,15 +53,13 @@ class Server:
             if not data:
                 break
             packet = Packet(bytes=data)
-            if packet.type == ANNOUNCEMENT:
-                self.table.updateTable(self.host,addr[0],packet.payload)
-            else:
+            if packet.type == globals.DATA:
                 pass
                 
 
                 
     def start(self):
-        datathread = threading.Thread(target=self.portListener,args=("portlistener"))
+        datathread = threading.Thread(target=self.portListener,args=("portlistener",))
         datathread.start()
         
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

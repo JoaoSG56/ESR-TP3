@@ -11,7 +11,7 @@ UNDERLINE = '\033[4m'
 INFO = '\33[93m'
 
 def printInfo(who,text):
-    print(f"{INFO}[{who}]{text}{ENDC}")
+    print(f" {INFO}[{who}]{text}{ENDC}")
     
 def printSuccess(who,text):
-    print(f"{OKGREEN}[{who}]{text}{ENDC}")
+    print(f" {OKGREEN}[{who}]{text}{ENDC}")
