@@ -13,6 +13,12 @@ class Packet:
     def getType(self):
         return self.type
 
+    def getIp(self):
+        return self.ip_destination
+    
+    def getPayload(self):
+        return self.payload
+
     def bytesToPacket(self,bytes):
         message = bytes.decode('utf8').split(';')
         self.type = message[0]
@@ -21,7 +27,6 @@ class Packet:
         self.payload = json.loads(message[3])
 
     def packetToBytes(self):
-        print(type(self.payload))
         if type(self.payload) is dict:
             message = ";".join([str(self.type),self.ip_destination,str(self.port),json.dumps(self.payload)])
         else:
@@ -30,3 +35,7 @@ class Packet:
     
     def toString(self):
         return ";".join([str(self.type),self.ip_destination,str(self.port),str(self.payload)])
+
+
+    def setIp(self,ip):
+        self.ip_destination = ip

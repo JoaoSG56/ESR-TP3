@@ -26,11 +26,23 @@ class Table:
     def get_table(self):
         return self.table
     
+    def get_next_hop(self,ip):
+        if ip in self.table:
+            return self.table[ip]["next_hop"]
+        return None
+    
+    def has_ip(self,ip):
+        return ip in self.table
         
     # addr -> de onde veio a nova table
     # host -> self ip
     def updateTable(self,host,addr,otherTable):
+        
+        # Quando adicionar o next_hop, arranjar solução para 3 ip's serem para o mesmo.
+        
+        
         changed = False
+        
         if addr not in self.table:
             print(addr)
             # Active é iniciado sempre a False para não compremeter fluxos já a correr | rever isto
@@ -39,6 +51,7 @@ class Table:
             self.table[addr] = {"next_hop":addr,"port":Table.DEFAULT_PORT,"announcement_port":Table.DEFAULT_ANNOUNCEMENT_PORT,"cost":1,"active":False}
             printInfo("table",("Created new entry\nTable Updated:\n"+str(self.table)))
             changed = True
+        
 
         for ip in otherTable:
             # se o caminho mais rápido for o meu, então ignora

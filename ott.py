@@ -14,6 +14,9 @@ def main():
         server.start()
 
     elif "-d" in params:
+        params.remove("-d")
+        node = Node(params)
+        node.start(True)
         pass
     
     elif len(params) > 0:

@@ -6,6 +6,7 @@ from lib_colors import *
 from table import Table
 from debugger import Debugger
 import globals
+import time
 
 
 class Server:
@@ -18,7 +19,8 @@ class Server:
         self.annport = annport
     
         self.table = Table()
-    
+        self.vizinhos = {}
+
     
 #   Worker for thread
 #   Listens for connections and decides what to do depending on type of the packet
@@ -53,14 +55,51 @@ class Server:
             if not data:
                 break
             packet = Packet(bytes=data)
-            if packet.type == globals.DATA:
-                pass
+            if packet.type == globals.REQUEST:
+                globals.printDebug(name,"Updated to active")
+                self.vizinhos[addr] = 1
+            
                 
 
+    def sendData(self,name):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        file = open("files/starwars.txt",'r')
+        lines = file.readlines()
+        output = ""
+        LINES_PER_FRAME = 14
+        DELAY = 0.67
+        i = 0
+        for line in lines:
+           
+            if i < LINES_PER_FRAME:
+                output = output + line + "\n"
+                i += 1
+            else:
+                bytePayload = Packet(type=3,ip=self.host,port=65432,payload=output).packetToBytes()
+                for ip in self.vizinhos:
+                    if self.vizinhos[ip] == 1:
+                        s.connect((ip,65432))
+                        print("[" + name + "] connected")
+                        s.sendall(bytePayload)
+                        print("[" + name + "] sended ...")        
+                
+                
+                output = ""
+                i = 0
+                
+                time.sleep(DELAY)
+        
+        s.close()
+
+        pass
+                
                 
     def start(self):
         datathread = threading.Thread(target=self.portListener,args=("portlistener",))
         datathread.start()
+        
+        sendDataThread = threading.Thread(target=self.sendData,args=("sendData",))
+        sendDataThread.start()
         
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
@@ -68,6 +107,6 @@ class Server:
             print("[ANNOUNCEMENT PORT] Listening at " + self.host)
             self.socket.listen()
             conn, addr = self.socket.accept()
-            
+            print("here")
             x = threading.Thread(target=self.dataListener, args=("listener",conn,addr))
             x.start()
