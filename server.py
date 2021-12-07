@@ -28,7 +28,6 @@ class Server:
         self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.annSocket.bind((self.host, self.annport))
 
-     
         while True:
             self.annSocket.listen()
             conn, addr = self.annSocket.accept()
@@ -37,10 +36,17 @@ class Server:
             if not data:
                 break
             packet = Packet(bytes=data)
+            print("\n\n")
+            packet.printa()
+            print("\n\n")
             if packet.type == globals.ANNOUNCEMENT or packet.type == globals.ANNOUCEMENTANDGET:
-                self.table.updateTable(self.host,addr[0],packet.payload)
+                self.table.updateTable(self.host,packet.getIpOrigem(),packet.payload)
+            elif packet.type == globals.REQUEST:
+                globals.printDebug(name,"Updated to active")
+                self.vizinhos[addr[0]] = 1
 
-                
+
+    """         
     def dataListener(self,name,conn,addr):
         # Debugger
         printInfo("server","Initializing debugger ...")
@@ -55,10 +61,13 @@ class Server:
             if not data:
                 break
             packet = Packet(bytes=data)
+            print("\n\n")
+            packet.printa()
+            print("\n\n")
             if packet.type == globals.REQUEST:
                 globals.printDebug(name,"Updated to active")
                 self.vizinhos[addr] = 1
-            
+    """  
                 
 
     def sendData(self,name):
@@ -75,7 +84,7 @@ class Server:
                 output = output + line + "\n"
                 i += 1
             else:
-                bytePayload = Packet(type=3,ip=self.host,port=65432,payload=output).packetToBytes()
+                bytePayload = Packet(type=3,ip_origem=self.host,ip_destino="0.0.0.0",port=65432,payload=output).packetToBytes()
                 for ip in self.vizinhos:
                     if self.vizinhos[ip] == 1:
                         s.connect((ip,65432))
@@ -101,6 +110,9 @@ class Server:
         sendDataThread = threading.Thread(target=self.sendData,args=("sendData",))
         sendDataThread.start()
         
+        print("[Server] Listening at " + self.host)
+        
+        """
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         while True:       
@@ -110,3 +122,4 @@ class Server:
             print("here")
             x = threading.Thread(target=self.dataListener, args=("listener",conn,addr))
             x.start()
+        """
