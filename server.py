@@ -10,10 +10,6 @@ import time
 
 import sys
 
-
-def test(signum, frame):
-    print("a")
-
 class Server:
     def __init__(self,port,annport,params):
         hostname = socket.gethostname()

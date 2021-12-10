@@ -1,6 +1,8 @@
 import socket
 import threading
 import time
+import sys
+import signal
 
 from packet import Packet
 from table import Table
@@ -50,6 +52,25 @@ class Node:
         AddressPortAnn = (self.host,23456)
         self.announcementSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.announcementSocket.bind(AddressPortAnn)
+        
+        self.threads = []
+
+
+    def signalINT_handler(self,signum, frame):
+        try:
+            for ip in self.vizinhos:
+            
+                if self.vizinhos[ip][2] is not None:
+                    self.vizinhos[ip][2].close()
+                if self.vizinhos[ip][3] is not None:
+                    self.vizinhos[ip][3].close()
+            self.dataSocket.close()
+            self.announcementSocket.close()
+        except socket.error as exc:
+            print(f"Caught exception socket.error : {exc}")
+        print("exiting ...")    
+        sys.exit(0)
+       
 
     def hasFluxo(self):
         for ip in self.vizinhos:
@@ -186,7 +207,10 @@ class Node:
     
     def announcementWorker(self,name,download): 
  
-        threading.Thread(target=self.announce).start()
+        anThread = threading.Thread(target=self.announce)
+        self.threads.append(anThread)
+        anThread.daemon = True
+        anThread.start()
     
         while True:
        
@@ -202,7 +226,10 @@ class Node:
             self.announcementSocket.listen()
             conn, addr = self.announcementSocket.accept()
             print('[announcementWorker] Connected by', addr)
-            threading.Thread(target=self.announcementReceiverWorker,args=("announcementReceiverWorker",conn,download,)).start()
+            thread = threading.Thread(target=self.announcementReceiverWorker,args=("announcementReceiverWorker",conn,download,))
+            self.threads.append(thread)
+            thread.daemon = True
+            thread.start()
             
     
     
@@ -235,16 +262,28 @@ class Node:
             self.dataSocket.listen()
             conn, addr = self.dataSocket.accept()
             print('[dataWorker] Connected by', addr)
-            threading.Thread(target=self.dataReceiverWorker,args=("dataReceiverWorker",conn,download,)).start()
+            datareceiver = threading.Thread(target=self.dataReceiverWorker,args=("dataReceiverWorker",conn,download,))
+            self.threads.append(datareceiver)
+            datareceiver.daemon = True
+            datareceiver.start()
      
         
     
     def start(self, download=False):
-        self.announcement = threading.Thread(target=self.announcementWorker, args=("annoucementWorker",download,)) # 23456
-        self.announcement.start()
+        signal.signal(signal.SIGINT, self.signalINT_handler)
         
-        self.worker=threading.Thread(target=self.dataWorker,args=("Worker",download,)) # 65432
-        self.worker.start()
+        announcementThread = threading.Thread(target=self.announcementWorker, args=("annoucementWorker",download,)) # 23456
+        self.threads.append(announcementThread)
+        announcementThread.daemon = True
+        announcementThread.start()
+        
+        workerThread =threading.Thread(target=self.dataWorker,args=("Worker",download,)) # 65432
+        self.threads.append(workerThread)
+        workerThread.daemon = True
+        workerThread.start()
+         
+        for i in self.threads:
+            i.join()
          
             #inp = input("What to say: ")
             #while inp != "":
