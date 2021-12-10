@@ -1,1 +1,1 @@
-python3 ott.py -s
+python3 ott.py -s n4

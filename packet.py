@@ -29,13 +29,14 @@ class Packet:
         self.ip_origem = message[1]
         self.ip_destination = message[2]
         self.port = message[3]
-        self.payload = json.loads(message[4])
+        self.payload = message[4]
 
     def packetToBytes(self):
         if type(self.payload) is dict:
+            print("entrou onde NÃO devia")
             message = ";".join([str(self.type),self.ip_origem,self.ip_destination,str(self.port),json.dumps(self.payload)])
         else:
-            message = ";".join([str(self.type),self.ip_origem,self.ip_destination,str(self.port),json.dumps(self.payload)])
+            message = ";".join([str(self.type),self.ip_origem,self.ip_destination,str(self.port),str(self.payload)])
         return message.encode('utf8')
     
     def toString(self):

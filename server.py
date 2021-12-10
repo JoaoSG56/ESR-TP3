@@ -10,7 +10,7 @@ import time
 
 
 class Server:
-    def __init__(self,port,annport):
+    def __init__(self,port,annport,params):
         hostname = socket.gethostname()
         print(hostname)
         local_ip = socket.gethostbyname(hostname)
@@ -18,13 +18,72 @@ class Server:
         self.port = port
         self.annport = annport
     
-        self.table = Table()
+        """
+        "ip":[0,0,sA,sD]           desligado, rota inativa, Socket announcement, Socket Data
+        "ip2":[1,0,sA,sD]          ligado, rota inativa, Socket announcement, Socket Data
+        etc...
+        
+        """
         self.vizinhos = {}
+        for name in params:
+            ip = socket.gethostbyname(name)
+            print(ip)
+            self.vizinhos[ip] = [0,0,None,None]
+      
+    
+    def announce(self):
+        for ip in self.vizinhos:
+            print("found 1 ip ...") 
+            print(ip)
+            try:
+                self.vizinhos[ip][2] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.vizinhos[ip][3] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                
+                self.vizinhos[ip][2].connect((ip,23456))
+                print("connected Announcement")
+                self.vizinhos[ip][3].connect((ip,65432))
+                print("connected Datas")
+                
+                self.vizinhos[ip][0] = 1
+                self.vizinhos[ip][1] = 0
+                self.vizinhos[ip][2].sendall(Packet(type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
+                print("sended ...")
+                #self.vizinhos[ipv][2].close()
+            
+            except socket.error as exc:
+                print(f"Caught exception socket.error : {exc}")
 
+    
+    
+    def serverConnWorker(self,name,conn):
+        while data := conn.recv(1024):
+            if not data:
+                break
+            packet = Packet(bytes=data)
+            print("\n\n")
+            packet.printa()
+            print("\n\n")
+            ip = packet.getIpOrigem()
+            if packet.type == globals.IM_HERE:
+                print(self.vizinhos)
+                self.vizinhos[ip][2].connect((ip,23456))
+                print("connected Announcement")
+                self.vizinhos[ip][3].connect((ip,65432))
+                print("connected Datas")
+                
+                self.vizinhos[ip][0] = 1
+                self.vizinhos[ip][1] = 0
+                self.vizinhos[ip][2].sendall(Packet(type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
+                print("sended ...")
+            elif packet.type == globals.REQUEST:
+                globals.printDebug(name,"Updated to active")
+                self.vizinhos[ip][1] = 1
     
 #   Worker for thread
 #   Listens for connections and decides what to do depending on type of the packet
-    def portListener(self,name):
+    def serverListenerWorker(self,name):
+        self.announce()
+        
         self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.annSocket.bind((self.host, self.annport))
 
@@ -32,18 +91,7 @@ class Server:
             self.annSocket.listen()
             conn, addr = self.annSocket.accept()
             print('[PORTLISTENER] Connected by', addr)
-            data = conn.recv(1024)
-            if not data:
-                break
-            packet = Packet(bytes=data)
-            print("\n\n")
-            packet.printa()
-            print("\n\n")
-            if packet.type == globals.ANNOUNCEMENT or packet.type == globals.ANNOUCEMENTANDGET:
-                self.table.updateTable(self.host,packet.getIpOrigem(),packet.payload)
-            elif packet.type == globals.REQUEST:
-                globals.printDebug(name,"Updated to active")
-                self.vizinhos[addr[0]] = 1
+            threading.Thread(target=self.serverConnWorker,args=("serverConnWorker",conn,)).start()
 
 
     """         
@@ -71,7 +119,6 @@ class Server:
                 
 
     def sendData(self,name):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         file = open("files/starwars.txt",'r')
         lines = file.readlines()
         output = ""
@@ -86,25 +133,21 @@ class Server:
             else:
                 bytePayload = Packet(type=3,ip_origem=self.host,ip_destino="0.0.0.0",port=65432,payload=output).packetToBytes()
                 for ip in self.vizinhos:
-                    if self.vizinhos[ip] == 1:
-                        s.connect((ip,65432))
-                        print("[" + name + "] connected")
-                        s.sendall(bytePayload)
-                        print("[" + name + "] sended ...")        
-                
-                
+                    if self.vizinhos[ip][0] == 1 and self.vizinhos[ip][1] == 1:
+                        self.vizinhos[ip][3].sendall(bytePayload)
+                        print("[" + name + "] sended ...")
+                     
                 output = ""
                 i = 0
                 
                 time.sleep(DELAY)
-        
-        s.close()
+    
 
-        pass
+        
                 
                 
     def start(self):
-        datathread = threading.Thread(target=self.portListener,args=("portlistener",))
+        datathread = threading.Thread(target=self.serverListenerWorker,args=("serverListenerWorker",))
         datathread.start()
         
         sendDataThread = threading.Thread(target=self.sendData,args=("sendData",))

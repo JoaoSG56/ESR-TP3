@@ -7,10 +7,10 @@ def main():
     
     params = sys.argv[1:]
     if "-s" in params:
-
+        params.remove("-s")
         PORT = 65432      # Port to listen on (non-privileged ports are > 1023)
         ANNPORT = 23456
-        server = Server(PORT,ANNPORT)
+        server = Server(PORT,ANNPORT,params)
         server.start()
 
     elif "-d" in params:

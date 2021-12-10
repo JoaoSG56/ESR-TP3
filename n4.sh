@@ -1,1 +1,1 @@
-python3 ott.py 10.0.0.20 10.0.1.20 10.0.2.10
+python3 ott.py n2 n3 server
