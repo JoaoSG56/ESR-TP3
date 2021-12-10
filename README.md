@@ -10,3 +10,8 @@
 ## payload
 ### Announcement
 * table
+
+
+# TODO
+* mudar informação do packet e adicionar ip origem.
+* na table, substituir addr por ip origem.
