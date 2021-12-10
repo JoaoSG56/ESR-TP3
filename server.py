@@ -12,7 +12,6 @@ import time
 class Server:
     def __init__(self,port,annport,params):
         hostname = socket.gethostname()
-        print(hostname)
         local_ip = socket.gethostbyname(hostname)
         self.host = local_ip
         self.port = port
@@ -123,12 +122,12 @@ class Server:
         lines = file.readlines()
         output = ""
         LINES_PER_FRAME = 14
-        DELAY = 0.67
+        DELAY = 0.47
         i = 0
         for line in lines:
            
             if i < LINES_PER_FRAME:
-                output = output + line + "\n"
+                output = output + line
                 i += 1
             else:
                 bytePayload = Packet(type=3,ip_origem=self.host,ip_destino="0.0.0.0",port=65432,payload=output).packetToBytes()

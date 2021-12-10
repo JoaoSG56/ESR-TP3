@@ -13,5 +13,7 @@
 
 
 # TODO
-* mudar informação do packet e adicionar ip origem.
-* na table, substituir addr por ip origem.
+* fazer cancelamento de rotas
+* Criar thread a ler de uma fila de packets para imprimir
+* adicionar forma de saber se pipe foi quebrada
+* linha 210 - recv handler and sendall handler

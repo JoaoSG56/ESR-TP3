@@ -125,6 +125,8 @@ class Node:
                     changed = self.table.updateTable(ip,int(packet.getPayload())+1)
                     if changed == 1:
                         # anuncia a todos
+                        
+                        ## Se rota melhor então muda a cena
                         if download:
                             next = self.table.get_next_hop()
                             if self.vizinhos[next][0]:
@@ -203,7 +205,7 @@ class Node:
             threading.Thread(target=self.announcementReceiverWorker,args=("announcementReceiverWorker",conn,download,)).start()
             
     
-     
+    
                        
     def dataReceiverWorker(self,name,conn,download):
         while data:=conn.recv(1024):
@@ -211,7 +213,9 @@ class Node:
                 packet = Packet(bytes=data)
                 if packet.type == globals.DATA: # Send from Server
                     if download:
-                        print(packet.getPayload())
+                        # Caso haja packets com o mesmo id, remover repetidos e cancelar rota alternativa
+                        
+                        print(packet.getPayload(),end='')
                     for ip in self.vizinhos:
                         if self.vizinhos[ip][1] == 1:
                             globals.printDebug("dataWorker","found rota ativa ...")
@@ -221,6 +225,7 @@ class Node:
                 else:
                     print("WHAAAAAAAAAAAAAT?")
                     break
+        print("SAI CARALHOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
           
                     
     
