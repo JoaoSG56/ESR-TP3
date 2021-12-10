@@ -3,7 +3,7 @@ from server import Server
 from node import Node
 
 
-def main():
+if __name__ == "__main__":
     
     params = sys.argv[1:]
     if "-s" in params:
@@ -32,5 +32,3 @@ def main():
             inp = input("What to say: ")
         
         """
-
-main()

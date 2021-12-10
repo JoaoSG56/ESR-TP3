@@ -1,4 +1,3 @@
-from lib_colors import printInfo
 class Table:
     """
     table:

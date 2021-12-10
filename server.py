@@ -1,13 +1,18 @@
 import socket
 import threading
+import signal
 
 from packet import Packet
-from lib_colors import *
 from table import Table
 from debugger import Debugger
 import globals
 import time
 
+import sys
+
+
+def test(signum, frame):
+    print("a")
 
 class Server:
     def __init__(self,port,annport,params):
@@ -28,7 +33,25 @@ class Server:
             ip = socket.gethostbyname(name)
             print(ip)
             self.vizinhos[ip] = [0,0,None,None]
+        self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        self.threads = []
+            
       
+    
+    def signalINT_handler(self,signum, frame):
+        try:
+            for ip in self.vizinhos:
+            
+                if self.vizinhos[ip][2] is not None:
+                    self.vizinhos[ip][2].close()
+                if self.vizinhos[ip][3] is not None:
+                    self.vizinhos[ip][3].close()
+            self.annSocket.close()
+        except socket.error as exc:
+            print(f"Caught exception socket.error : {exc}")
+        print("exiting ...")    
+        sys.exit(0)
+       
     
     def announce(self):
         for ip in self.vizinhos:
@@ -79,43 +102,26 @@ class Server:
                 self.vizinhos[ip][1] = 1
     
 #   Worker for thread
-#   Listens for connections and decides what to do depending on type of the packet
-    def serverListenerWorker(self,name):
+#   Listens for connections and decides what to do depending on type of the packet    
+    def serverListenerWorker(self,name):     
         self.announce()
         
-        self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
         self.annSocket.bind((self.host, self.annport))
 
         while True:
             self.annSocket.listen()
             conn, addr = self.annSocket.accept()
             print('[PORTLISTENER] Connected by', addr)
-            threading.Thread(target=self.serverConnWorker,args=("serverConnWorker",conn,)).start()
+            x = threading.Thread(target=self.serverConnWorker,args=("serverConnWorker",conn,))
+            self.threads.append(x)
+            x.daemon = True
+            x.start()
+            
 
-
-    """         
-    def dataListener(self,name,conn,addr):
-        # Debugger
-        printInfo("server","Initializing debugger ...")
-        debugger = Debugger(self.table)
-        debugger.start()
-        printSuccess("debugger","Initialization sucessful")
-        
-        
-        print('Connected by', addr)
-        while True:
-            data = conn.recv(1024)
-            if not data:
-                break
-            packet = Packet(bytes=data)
-            print("\n\n")
-            packet.printa()
-            print("\n\n")
-            if packet.type == globals.REQUEST:
-                globals.printDebug(name,"Updated to active")
-                self.vizinhos[addr] = 1
-    """  
-                
+            
+            
+         
 
     def sendData(self,name):
         file = open("files/starwars.txt",'r')
@@ -140,19 +146,30 @@ class Server:
                 i = 0
                 
                 time.sleep(DELAY)
-    
-
-        
-                
+          
                 
     def start(self):
+        signal.signal(signal.SIGINT, self.signalINT_handler)
+        
         datathread = threading.Thread(target=self.serverListenerWorker,args=("serverListenerWorker",))
+        self.threads.append(datathread)
+        datathread.daemon = True
         datathread.start()
         
+        
         sendDataThread = threading.Thread(target=self.sendData,args=("sendData",))
+        self.threads.append(sendDataThread)
+        sendDataThread.daemon = True
         sendDataThread.start()
         
+       
+        
+        
         print("[Server] Listening at " + self.host)
+        
+        for i in self.threads:
+            i.join()
+            
         
         """
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
