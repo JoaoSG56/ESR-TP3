@@ -55,6 +55,7 @@ class Node:
         
         self.threads = []
 
+        self.downloading = False
 
     def signalINT_handler(self,signum, frame):
         try:
@@ -112,7 +113,7 @@ class Node:
     
     
     
-    def announcementReceiverWorker(self,name,conn,download = False):
+    def announcementReceiverWorker(self,name,conn):
         while data := conn.recv(1024):
             if data: 
                 packet = Packet(bytes=data)
@@ -148,7 +149,7 @@ class Node:
                         # anuncia a todos
                         
                         ## Se rota melhor então muda a cena
-                        if download:
+                        if self.downloading:
                             next = self.table.get_next_hop()
                             if self.vizinhos[next][0]:
                                 
@@ -191,7 +192,16 @@ class Node:
                                 
                             except socket.error as exc:
                                 print(f"[PORTA 65432] Caught exception socket.error : {exc}")
-                                
+                elif packet.type == globals.STOP:
+                    # stop
+                    self.vizinhos[packet.getIpOrigem][0] = 0 # rota inativa
+                    if not self.hasFluxo():
+                        globals.printDebug(name,"Existe servidor")
+                        s = self.vizinhos[self.table.get_next_hop()][2]
+                        print("ip2: " + self.table.get_next_hop())
+                        s.sendall(Packet(type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                        globals.printDebug(name,"sended ...")
+                    
                             
                             
                             
@@ -205,7 +215,7 @@ class Node:
     
     
     
-    def announcementWorker(self,name,download): 
+    def announcementWorker(self,name): 
  
         anThread = threading.Thread(target=self.announce)
         self.threads.append(anThread)
@@ -213,20 +223,11 @@ class Node:
         anThread.start()
     
         while True:
-       
-            if download and self.table.hasRoute():
-                globals.printDebug(name,"Existe servidor")
-                s = self.vizinhos[self.table.get_next_hop()][2]
-                print("ip2: " + self.table.get_next_hop())
-                s.sendall(Packet(type=4,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
-                globals.printDebug(name,"sended ...")
-            elif download and not self.table.hasRoute():
-                globals.printDebug(name,"Não existe servidor")
 
             self.announcementSocket.listen()
             conn, addr = self.announcementSocket.accept()
             print('[announcementWorker] Connected by', addr)
-            thread = threading.Thread(target=self.announcementReceiverWorker,args=("announcementReceiverWorker",conn,download,))
+            thread = threading.Thread(target=self.announcementReceiverWorker,args=("announcementReceiverWorker",conn,))
             self.threads.append(thread)
             thread.daemon = True
             thread.start()
@@ -234,12 +235,12 @@ class Node:
     
     
                        
-    def dataReceiverWorker(self,name,conn,download):
+    def dataReceiverWorker(self,name,conn):
         while data:=conn.recv(1024):
             if data: 
                 packet = Packet(bytes=data)
                 if packet.type == globals.DATA: # Send from Server
-                    if download:
+                    if self.downloading:
                         # Caso haja packets com o mesmo id, remover repetidos e cancelar rota alternativa
                         
                         print(packet.getPayload(),end='')
@@ -257,30 +258,63 @@ class Node:
                     
     
     
-    def dataWorker(self,name,download):     
+    def dataWorker(self,name):     
         while True:
             self.dataSocket.listen()
             conn, addr = self.dataSocket.accept()
             print('[dataWorker] Connected by', addr)
-            datareceiver = threading.Thread(target=self.dataReceiverWorker,args=("dataReceiverWorker",conn,download,))
+            datareceiver = threading.Thread(target=self.dataReceiverWorker,args=("dataReceiverWorker",conn,))
             self.threads.append(datareceiver)
             datareceiver.daemon = True
             datareceiver.start()
      
         
+    def inputWorker(self,name):
+        while True:
+            inp = input("node>> ")
+            if inp == "help":
+                print("commands:\ndownload | stop")
+            elif inp == "download":
+                if self.table.hasRoute():
+                    globals.printDebug(name,"Existe servidor")
+                    s = self.vizinhos[self.table.get_next_hop()][2]
+                    print("ip2: " + self.table.get_next_hop())
+                    s.sendall(Packet(type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                    globals.printDebug(name,"sended ...")
+                    self.downloading = True
+                else:
+                    globals.printDebug(name,"No server available")
+            elif inp == "stop":
+                if self.table.hasRoute():
+                    globals.printDebug(name,"Existe servidor")
+                    s = self.vizinhos[self.table.get_next_hop()][2]
+                    print("ip2: " + self.table.get_next_hop())
+                    s.sendall(Packet(type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                    globals.printDebug(name,"sended ...")
+                    self.downloading = False
+                else:
+                    globals.printDebug(name,"não devia entrar aqui")
+
+        
     
-    def start(self, download=False):
+    
+    def start(self):
         signal.signal(signal.SIGINT, self.signalINT_handler)
         
-        announcementThread = threading.Thread(target=self.announcementWorker, args=("annoucementWorker",download,)) # 23456
+        announcementThread = threading.Thread(target=self.announcementWorker, args=("annoucementWorker",)) # 23456
         self.threads.append(announcementThread)
         announcementThread.daemon = True
         announcementThread.start()
         
-        workerThread =threading.Thread(target=self.dataWorker,args=("Worker",download,)) # 65432
+        workerThread =threading.Thread(target=self.dataWorker,args=("Worker",)) # 65432
         self.threads.append(workerThread)
         workerThread.daemon = True
         workerThread.start()
+        
+        inputThread = threading.Thread(target=self.inputWorker,args=("inputThread",))
+        self.threads.append(inputThread)
+        inputThread.daemon=True
+        inputThread.start()
          
         for i in self.threads:
             i.join()

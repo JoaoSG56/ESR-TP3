@@ -12,12 +12,6 @@ if __name__ == "__main__":
         ANNPORT = 23456
         server = Server(PORT,ANNPORT,params)
         server.start()
-
-    elif "-d" in params:
-        params.remove("-d")
-        node = Node(params)
-        node.start(True)
-        pass
     
     elif len(params) > 0:
         node = Node(params)

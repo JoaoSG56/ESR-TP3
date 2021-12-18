@@ -2,6 +2,7 @@ IM_HERE = '1' # Enviado quando inicializado o nodo / server
 ANNOUNCEMENT = '2' # Enviado quando é recebido um Packet do tipo 1
 DATA = '3'
 REQUEST = '4'
+STOP = '5'
 
 
 HEADER = '\033[95m'

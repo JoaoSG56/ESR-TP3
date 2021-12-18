@@ -96,6 +96,10 @@ class Server:
             elif packet.type == globals.REQUEST:
                 globals.printDebug(name,"Updated to active")
                 self.vizinhos[ip][1] = 1
+            elif packet.type == globals.STOP:
+                globals.printDebug(name,"Updated to inactive")
+                self.vizinhos[ip][1] = 0
+    
     
 #   Worker for thread
 #   Listens for connections and decides what to do depending on type of the packet    
