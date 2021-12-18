@@ -47,10 +47,14 @@ class Node:
         
         AddressPortData = (self.host,65432)
         self.dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.dataSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
         self.dataSocket.bind(AddressPortData)
         
         AddressPortAnn = (self.host,23456)
         self.announcementSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.announcementSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
         self.announcementSocket.bind(AddressPortAnn)
         
         self.threads = []
@@ -175,8 +179,8 @@ class Node:
                         if self.vizinhos[next][0]:
                             
                             try:
-                                if self.vizinhos[ip][3] is None:
-                                    self.vizinhos[ip][3] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                
+                                self.vizinhos[ip][3] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                                 self.vizinhos[ip][3].connect((ip,65432))
                                 print("connected Datas")
                                 
@@ -194,7 +198,8 @@ class Node:
                                 print(f"[PORTA 65432] Caught exception socket.error : {exc}")
                 elif packet.type == globals.STOP:
                     # stop
-                    self.vizinhos[packet.getIpOrigem][0] = 0 # rota inativa
+                    self.vizinhos[packet.getIpOrigem()][1] = 0 # rota inativa
+                    self.vizinhos[packet.getIpOrigem()][3].close()
                     if not self.hasFluxo():
                         globals.printDebug(name,"Existe servidor")
                         s = self.vizinhos[self.table.get_next_hop()][2]
@@ -275,25 +280,27 @@ class Node:
             if inp == "help":
                 print("commands:\ndownload | stop")
             elif inp == "download":
-                if self.table.hasRoute():
-                    globals.printDebug(name,"Existe servidor")
-                    s = self.vizinhos[self.table.get_next_hop()][2]
-                    print("ip2: " + self.table.get_next_hop())
-                    s.sendall(Packet(type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
-                    globals.printDebug(name,"sended ...")
-                    self.downloading = True
-                else:
-                    globals.printDebug(name,"No server available")
+                if not self.downloading:
+                    if self.table.hasRoute():
+                        globals.printDebug(name,"Existe servidor")
+                        s = self.vizinhos[self.table.get_next_hop()][2]
+                        print("ip2: " + self.table.get_next_hop())
+                        s.sendall(Packet(type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                        globals.printDebug(name,"sended ...")
+                        self.downloading = True
+                    else:
+                        globals.printDebug(name,"No server available")
             elif inp == "stop":
-                if self.table.hasRoute():
-                    globals.printDebug(name,"Existe servidor")
-                    s = self.vizinhos[self.table.get_next_hop()][2]
-                    print("ip2: " + self.table.get_next_hop())
-                    s.sendall(Packet(type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
-                    globals.printDebug(name,"sended ...")
-                    self.downloading = False
-                else:
-                    globals.printDebug(name,"não devia entrar aqui")
+                if self.downloading:
+                    if self.table.hasRoute():
+                        globals.printDebug(name,"Existe servidor")
+                        s = self.vizinhos[self.table.get_next_hop()][2]
+                        print("ip2: " + self.table.get_next_hop())
+                        s.sendall(Packet(type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                        globals.printDebug(name,"sended ...")
+                        self.downloading = False
+                    else:
+                        globals.printDebug(name,"não devia entrar aqui")
 
         
     

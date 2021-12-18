@@ -30,19 +30,21 @@ class Server:
             print(ip)
             self.vizinhos[ip] = [0,0,None,None]
         self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        self.annSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.threads = []
             
       
     
     def signalINT_handler(self,signum, frame):
         try:
+            self.annSocket.close()
             for ip in self.vizinhos:
             
                 if self.vizinhos[ip][2] is not None:
                     self.vizinhos[ip][2].close()
                 if self.vizinhos[ip][3] is not None:
                     self.vizinhos[ip][3].close()
-            self.annSocket.close()
+            
         except socket.error as exc:
             print(f"Caught exception socket.error : {exc}")
         print("exiting ...")    
