@@ -66,7 +66,7 @@ class Server:
                 
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
-                self.vizinhos[ip][2].sendall(Packet(type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
+                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
                 print("sended ...")
                 #self.vizinhos[ipv][2].close()
             
@@ -93,7 +93,7 @@ class Server:
                 
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
-                self.vizinhos[ip][2].sendall(Packet(type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
+                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
                 print("sended ...")
             elif packet.type == globals.REQUEST:
                 globals.printDebug(name,"Updated to active")
@@ -105,13 +105,11 @@ class Server:
     
 #   Worker for thread
 #   Listens for connections and decides what to do depending on type of the packet    
-    def serverListenerWorker(self,name):     
-        self.announce()
-        
-        
+    def serverListenerWorker(self,name):    
         self.annSocket.bind((self.host, self.annport))
-
+    
         while True:
+            print(self.annSocket)
             self.annSocket.listen()
             conn, addr = self.annSocket.accept()
             print('[PORTLISTENER] Connected by', addr)
@@ -132,13 +130,15 @@ class Server:
         LINES_PER_FRAME = 14
         DELAY = 0.47
         i = 0
+        packet_id = 0
         for line in lines:
            
             if i < LINES_PER_FRAME:
                 output = output + line
                 i += 1
             else:
-                bytePayload = Packet(type=3,ip_origem=self.host,ip_destino="0.0.0.0",port=65432,payload=output).packetToBytes()
+                bytePayload = Packet(packetID=packet_id,type=3,ip_origem=self.host,ip_destino="0.0.0.0",port=65432,payload=output).packetToBytes()
+                packet_id += 1
                 for ip in self.vizinhos:
                     if self.vizinhos[ip][0] == 1 and self.vizinhos[ip][1] == 1:
                         self.vizinhos[ip][3].sendall(bytePayload)
@@ -164,8 +164,7 @@ class Server:
         sendDataThread.daemon = True
         sendDataThread.start()
         
-       
-        
+        self.announce()
         
         print("[Server] Listening at " + self.host)
         

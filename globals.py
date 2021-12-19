@@ -21,3 +21,6 @@ def printDebug(who,text):
     
 def printSuccess(who,text):
     print(f" {OKGREEN}[{who}]{text}{ENDC}")
+    
+def printError(who,text):
+    print(f" {FAIL}[{who}]{text}{ENDC}")

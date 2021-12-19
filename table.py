@@ -33,10 +33,15 @@ class Table:
             if cost < self.table["primary"]["cost"]:
                 self.changeOrder()
                 toChange = 1
+            elif not self.table["secondary"]["cost"]:
+                toChange = 2
             elif cost < self.table["secondary"]["cost"]:
                 toChange = 2
                 
-            if toChange:
+            if toChange == 1:
+                self.table["primary"]["next_hop"] = next_hop
+                self.table["primary"]["cost"] = cost
+            elif toChange == 2:
                 self.table["secondary"]["next_hop"] = next_hop
                 self.table["secondary"]["cost"] = cost
         else:
@@ -58,4 +63,7 @@ class Table:
         temp = self.table["primary"]
         self.table["primary"] = self.table["secondary"]
         self.table["secondary"] = temp
+        
+    def print(self):
+        print(self.table)
         

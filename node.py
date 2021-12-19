@@ -6,6 +6,7 @@ import signal
 
 from packet import Packet
 from table import Table
+from sharedStack import StackShared
 
 import globals
 
@@ -60,6 +61,8 @@ class Node:
         self.threads = []
 
         self.downloading = False
+        
+        self.stack = StackShared()
 
     def signalINT_handler(self,signum, frame):
         try:
@@ -97,13 +100,13 @@ class Node:
                 
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
-                self.vizinhos[ip][2].sendall(Packet(type=globals.IM_HERE,ip_origem=self.host,ip_destino=ip,port=23456,payload="").packetToBytes())
+                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.IM_HERE,ip_origem=self.host,ip_destino=ip,port=23456,payload="").packetToBytes())
                 print("sended ...")
                 #self.vizinhos[ipv][2].close()
             
             except socket.error as exc:
                 print(f"[PORTA 23456] Caught exception socket.error : {exc}")
-                
+        #announcement_done.set()
             
 
     # ip -> ip de onde não é para mandar
@@ -111,7 +114,7 @@ class Node:
         for ip in self.vizinhos:
             if self.vizinhos[ip][0] and ip != ipN:
                 # announce
-                self.vizinhos[ip][2].sendall(Packet(type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost)).packetToBytes())
+                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost)).packetToBytes())
     
     
     
@@ -138,7 +141,7 @@ class Node:
                                 print("tem cost: " + str(cost))
                                 
                                 
-                                self.vizinhos[ip][2].sendall(Packet(type=2,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost)).packetToBytes())
+                                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=2,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost)).packetToBytes())
                                 globals.printDebug(name,"sended ...")
                             else:
                                 globals.printDebug("annWorker","cost é none")
@@ -147,6 +150,13 @@ class Node:
                     
                     
                 elif packet.type == globals.ANNOUNCEMENT:
+                    if not self.vizinhos[ip][0]:
+                        globals.printDebug(name,"Server connected")
+                        self.vizinhos[ip][0] = 1
+                        if self.vizinhos[ip][2] is None:
+                            self.vizinhos[ip][2] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        print(self.vizinhos[ip][2])
+                        self.vizinhos[ip][2].connect((ip,23456))
                     globals.printDebug("annworker","Type announcement")
                     changed = self.table.updateTable(ip,int(packet.getPayload())+1)
                     if changed == 1:
@@ -155,6 +165,7 @@ class Node:
                         ## Se rota melhor então muda a cena
                         if self.downloading:
                             next = self.table.get_next_hop()
+                            print(next)
                             if self.vizinhos[next][0]:
                                 
                                 try:
@@ -162,7 +173,7 @@ class Node:
                                         globals.printDebug(name,"tem fluxo")
                                     else:
                                         globals.printDebug(name,"não tem fluxo")
-                                        self.vizinhos[next][2].sendall(Packet(type=4,ip_origem=self.host,ip_destino=next,port=23456,payload="").packetToBytes())
+                                        self.vizinhos[next][2].sendall(Packet(packetID=0,type=4,ip_origem=self.host,ip_destino=next,port=23456,payload="").packetToBytes())
                                         globals.printDebug(name,"sended ...")
                                     
                                 except socket.error as exc:
@@ -173,9 +184,12 @@ class Node:
                 elif packet.type == globals.REQUEST:
                     # request
                     if self.table.hasRoute():
+                        
                         print("tenho rota ativa")
                         # request Server
                         next = self.table.get_next_hop()
+                        print(next)
+                        print(self.vizinhos[next][0])
                         if self.vizinhos[next][0]:
                             
                             try:
@@ -190,7 +204,7 @@ class Node:
                                     globals.printDebug(name,"tem fluxo")
                                     self.vizinhos[ip][1] = 1
                                 else:
-                                    s.sendall(Packet(type=4,ip_origem=self.host,ip_destino=next,port=23456,payload="").packetToBytes())
+                                    s.sendall(Packet(packetID=0,type=4,ip_origem=self.host,ip_destino=next,port=23456,payload="").packetToBytes())
                                     globals.printDebug(name,"sended ...")
                                     self.vizinhos[ip][1] = 1
                                 
@@ -204,7 +218,7 @@ class Node:
                         globals.printDebug(name,"Existe servidor")
                         s = self.vizinhos[self.table.get_next_hop()][2]
                         print("ip2: " + self.table.get_next_hop())
-                        s.sendall(Packet(type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                        s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
                         globals.printDebug(name,"sended ...")
                     
                             
@@ -221,12 +235,13 @@ class Node:
     
     
     def announcementWorker(self,name): 
- 
+        #announcement_done = threading.Event()
         anThread = threading.Thread(target=self.announce)
         self.threads.append(anThread)
         anThread.daemon = True
         anThread.start()
-    
+        #while not announcement_done.is_set():
+        #    announcement_done.wait()
         while True:
 
             self.announcementSocket.listen()
@@ -245,10 +260,13 @@ class Node:
             if data: 
                 packet = Packet(bytes=data)
                 if packet.type == globals.DATA: # Send from Server
+                    
                     if self.downloading:
                         # Caso haja packets com o mesmo id, remover repetidos e cancelar rota alternativa
-                        
+                        if self.stack.containsID(packet.getPacketID()):
+                            globals.printError(name,"REPETIDOOOOOOOOOOOOO")
                         print(packet.getPayload(),end='')
+                    self.stack.push(packet.getPacketID())   
                     for ip in self.vizinhos:
                         if self.vizinhos[ip][1] == 1:
                             globals.printDebug("dataWorker","found rota ativa ...")
@@ -259,9 +277,7 @@ class Node:
                     print("WHAAAAAAAAAAAAAT?")
                     break
         print("SAI CARALHOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
-          
-                    
-    
+ 
     
     def dataWorker(self,name):     
         while True:
@@ -285,7 +301,8 @@ class Node:
                         globals.printDebug(name,"Existe servidor")
                         s = self.vizinhos[self.table.get_next_hop()][2]
                         print("ip2: " + self.table.get_next_hop())
-                        s.sendall(Packet(type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                        print(s)
+                        s.sendall(Packet(packetID=0,type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
                         globals.printDebug(name,"sended ...")
                         self.downloading = True
                     else:
@@ -296,11 +313,15 @@ class Node:
                         globals.printDebug(name,"Existe servidor")
                         s = self.vizinhos[self.table.get_next_hop()][2]
                         print("ip2: " + self.table.get_next_hop())
-                        s.sendall(Packet(type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+                        s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
                         globals.printDebug(name,"sended ...")
                         self.downloading = False
                     else:
                         globals.printDebug(name,"não devia entrar aqui")
+            elif inp == "print":
+                self.table.print()
+                print("downloading: " + str(self.downloading))
+                print(self.vizinhos)
 
         
     
