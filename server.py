@@ -3,8 +3,6 @@ import threading
 import signal
 
 from packet import Packet
-from table import Table
-from debugger import Debugger
 import globals
 import time
 
@@ -130,7 +128,7 @@ class Server:
         LINES_PER_FRAME = 14
         DELAY = 0.47
         i = 0
-        packet_id = 0
+        packet_id = 1
         for line in lines:
            
             if i < LINES_PER_FRAME:
@@ -148,6 +146,14 @@ class Server:
                 i = 0
                 
                 time.sleep(DELAY)
+    def inputWorker(self,name):
+        while True:
+            inp = input("server>> ")
+            if inp == "help":
+                print("commands:\nprint")
+            elif inp == "print":
+                print(self.vizinhos)
+
           
                 
     def start(self):
@@ -163,6 +169,11 @@ class Server:
         self.threads.append(sendDataThread)
         sendDataThread.daemon = True
         sendDataThread.start()
+        
+        inputThread = threading.Thread(target=self.inputWorker,args=("inputThread",))
+        self.threads.append(inputThread)
+        inputThread.daemon=True
+        inputThread.start()
         
         self.announce()
         

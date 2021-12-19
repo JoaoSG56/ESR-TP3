@@ -24,6 +24,9 @@ class Table:
     
     def get_next_hop(self):
         return self.table["primary"]["next_hop"]
+    
+    def get_sec_hop(self):
+        return self.table["secondary"]["next_hop"]
         
     # addr -> de onde veio a nova table
     # host -> self ip

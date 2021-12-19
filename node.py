@@ -88,7 +88,6 @@ class Node:
 
         
     def announce(self):
-        time.sleep(1)
         for ip in self.vizinhos:
             print("found 1 ip ...") 
             print(ip)
@@ -137,11 +136,12 @@ class Node:
                         globals.printDebug(name,"connected")
                         if self.table.hasRoute():
                             cost = self.table.getRouteCost()
+                            globals.printDebug(name,cost)
                             if cost is not None:
                                 print("tem cost: " + str(cost))
                                 
-                                
-                                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=2,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost)).packetToBytes())
+                                p = Packet(packetID=0,type=2,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost))
+                                self.vizinhos[ip][2].sendall(p.packetToBytes())
                                 globals.printDebug(name,"sended ...")
                             else:
                                 globals.printDebug("annWorker","cost é none")
@@ -228,7 +228,8 @@ class Node:
                     
                     else:
                         print("não tenho rota ativa")
-
+        globals.printDebug(name,"Ligação caiu")
+        print(conn)
     
     
     
@@ -236,10 +237,10 @@ class Node:
     
     def announcementWorker(self,name): 
         #announcement_done = threading.Event()
-        anThread = threading.Thread(target=self.announce)
-        self.threads.append(anThread)
-        anThread.daemon = True
-        anThread.start()
+        #anThread = threading.Thread(target=self.announce)
+        #self.threads.append(anThread)
+        #anThread.daemon = True
+        #anThread.start()
         #while not announcement_done.is_set():
         #    announcement_done.wait()
         while True:
@@ -265,6 +266,14 @@ class Node:
                         # Caso haja packets com o mesmo id, remover repetidos e cancelar rota alternativa
                         if self.stack.containsID(packet.getPacketID()):
                             globals.printError(name,"REPETIDOOOOOOOOOOOOO")
+                            sh = self.table.get_sec_hop() 
+                            if sh and self.downloading:
+                                s = self.vizinhos[sh][2]
+                                print("stoping: " + sh)
+                                s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=sh,port=23456,payload="").packetToBytes())
+                                globals.printDebug(name,"sended ...")
+                            else:
+                                globals.printDebug(name,"não devia entrar aqui")
                         print(packet.getPayload(),end='')
                     self.stack.push(packet.getPacketID())   
                     for ip in self.vizinhos:
@@ -343,6 +352,8 @@ class Node:
         self.threads.append(inputThread)
         inputThread.daemon=True
         inputThread.start()
+        
+        self.announce()
          
         for i in self.threads:
             i.join()
