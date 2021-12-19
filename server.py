@@ -29,6 +29,8 @@ class Server:
             self.vizinhos[ip] = [0,0,None,None]
         self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
         self.annSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
+        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.threads = []
             
       
@@ -55,12 +57,12 @@ class Server:
             print(ip)
             try:
                 self.vizinhos[ip][2] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.vizinhos[ip][3] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                #self.vizinhos[ip][3] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 
                 self.vizinhos[ip][2].connect((ip,23456))
                 print("connected Announcement")
-                self.vizinhos[ip][3].connect((ip,65432))
-                print("connected Datas")
+                #self.vizinhos[ip][3].connect((ip,65432))
+                #print("connected Datas")
                 
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
@@ -86,8 +88,8 @@ class Server:
                 print(self.vizinhos)
                 self.vizinhos[ip][2].connect((ip,23456))
                 print("connected Announcement")
-                self.vizinhos[ip][3].connect((ip,65432))
-                print("connected Datas")
+                #self.vizinhos[ip][3].connect((ip,65432))
+                #print("connected Datas")
                 
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
@@ -139,7 +141,8 @@ class Server:
                 packet_id += 1
                 for ip in self.vizinhos:
                     if self.vizinhos[ip][0] == 1 and self.vizinhos[ip][1] == 1:
-                        self.vizinhos[ip][3].sendall(bytePayload)
+                        #self.vizinhos[ip][3].sendall(bytePayload)
+                        self.rtpSocket.sendto(bytePayload, (ip,65432))
                         print("[" + name + "] sended ...")
                      
                 output = ""
