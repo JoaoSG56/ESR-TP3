@@ -314,9 +314,11 @@ class Node:
             
             #print('[dataWorker] Connected by', addr[0])
             if data: 
-                
-                if addr[0] not in self.stack:
-                    self.stack.append(addr[0])
+                rtpPacket = RtpPacket()
+                rtpPacket.decode(data)
+                ip_O = rtpPacket.getIpOrigem()
+                if ip_O not in self.stack:
+                    self.stack.append(ip_O)
                     if len(self.stack) > 1:
                         globals.printError(name,"2 ips diferentes!!!!")
                         sh = self.table.get_next_hop() 
@@ -330,18 +332,18 @@ class Node:
                             socket.gethostbyname
                     
                 if self.downloading:
-                    rtpPacket = RtpPacket()
-                    rtpPacket.decode(data)
+                    
                     
                     currFrameNbr = rtpPacket.seqNum()
                     self.frameNbr = currFrameNbr
                     self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
                 
-                    
+                rtpPacket.setIpOrigem(self.host)
+                newData = rtpPacket.getPacket()
                 for ip in self.vizinhos:
                     if self.vizinhos[ip][1] == 1:
                         globals.printDebug("dataWorker","found rota ativa ...")
-                        self.vizinhos[ip][3].sendto(data, (ip,65432))
+                        self.vizinhos[ip][3].sendto(newData, (ip,65432))
                         globals.printDebug("dataWorker","sended ...")
             
          

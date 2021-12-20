@@ -134,7 +134,7 @@ class Server:
 
         rtpPacket = RtpPacket()
 
-        rtpPacket.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
+        rtpPacket.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, self.host, payload)
 
         return rtpPacket.getPacket()   
             
