@@ -25,8 +25,6 @@ class Node:
         self.frameNbr = 0
         self.session = socket.gethostname()
         
-        
-        
         self.table = Table()
         """
         table:
@@ -42,7 +40,6 @@ class Node:
                     "cost":"$cost",
                 }
         }
-        
         vizinhos:
         {
             "ip":[0,0,sA,sD]           desligado, rota inativa, Socket announcement, Socket Data
@@ -153,10 +150,7 @@ class Node:
             if self.vizinhos[ip][0] and ip != ipN:
                 # announce
                 self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost)).packetToBytes())
-    
-    
-    
-    
+        
     
     def announcementReceiverWorker(self,name,conn):
         while data := conn.recv(1024):
@@ -178,7 +172,7 @@ class Node:
                             globals.printDebug(name,cost)
                             if cost is not None:
                                 print("tem cost: " + str(cost))
-                                
+
                                 p = Packet(packetID=0,type=2,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost))
                                 self.vizinhos[ip][2].sendall(p.packetToBytes())
                                 globals.printDebug(name,"sended ...")
@@ -200,7 +194,7 @@ class Node:
                     changed = self.table.updateTable(ip,int(packet.getPayload())+1)
                     if changed == 1:
                         # anuncia a todos
-                        
+
                         ## Se rota melhor então muda a cena
                         if self.downloading:
                             next = self.table.get_next_hop()
@@ -259,12 +253,7 @@ class Node:
                         print("ip2: " + self.table.get_next_hop())
                         s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
                         globals.printDebug(name,"sended ...")
-                    
                             
-                            
-                            
-                    
-                    
                     else:
                         print("não tenho rota ativa")
         globals.printDebug(name,"Ligação caiu")
@@ -275,13 +264,6 @@ class Node:
     
     
     def announcementWorker(self,name): 
-        #announcement_done = threading.Event()
-        #anThread = threading.Thread(target=self.announce)
-        #self.threads.append(anThread)
-        #anThread.daemon = True
-        #anThread.start()
-        #while not announcement_done.is_set():
-        #    announcement_done.wait()
         while True:
 
             self.announcementSocket.listen()
@@ -312,7 +294,6 @@ class Node:
 
             data, addr = self.dataSocket.recvfrom(20480)
             
-            #print('[dataWorker] Connected by', addr[0])
             if data: 
                 rtpPacket = RtpPacket()
                 rtpPacket.decode(data)
@@ -377,44 +358,7 @@ class Node:
         self.table.print()
         print("downloading: " + str(self.downloading))
         print(self.vizinhos)
-    """
-    def inputWorker(self,name):
-        while True:
-            inp = input("node>> ")
-            if inp == "help":
-                print("commands:\ndownload | stop")
-            elif inp == "download":
-                if not self.downloading:
-                    if self.table.hasRoute():
-                        globals.printDebug(name,"Existe servidor")
-                        s = self.vizinhos[self.table.get_next_hop()][2]
-                        print("ip2: " + self.table.get_next_hop())
-                        print(s)
-                        s.sendall(Packet(packetID=0,type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
-                        globals.printDebug(name,"sended ...")
-                        self.downloading = True
-                    else:
-                        globals.printDebug(name,"No server available")
-            elif inp == "stop":
-                if self.downloading:
-                    if self.table.hasRoute():
-                        globals.printDebug(name,"Existe servidor")
-                        s = self.vizinhos[self.table.get_next_hop()][2]
-                        print("ip2: " + self.table.get_next_hop())
-                        s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
-                        globals.printDebug(name,"sended ...")
-                        self.downloading = False
-                    else:
-                        globals.printDebug(name,"não devia entrar aqui")
-            elif inp == "print":
-                self.table.print()
-                print("downloading: " + str(self.downloading))
-                print(self.vizinhos)
-                
-            elif inp == "init":
-                pass
-    """
-        
+
     def handler(self):
 	    #self.pauseMovie()
         if tkMessageBox.askokcancel("Quit?", "Are you sure you want to quit?"):
@@ -435,23 +379,9 @@ class Node:
         self.threads.append(workerThread)
         workerThread.daemon = True
         workerThread.start()
-        """
-        inputThread = threading.Thread(target=self.inputWorker,args=("inputThread",))
-        self.threads.append(inputThread)
-        inputThread.daemon=True
-        inputThread.start()
-        """
+
         self.announce()
          
-        #for i in self.threads:
-        #    i.join()
-         
-            #inp = input("What to say: ")
-            #while inp != "":
-            #    s.sendall(bytes(inp,encoding='utf8'))
-            #    inp = input("What to say: ")
-        #    def start(self)
-
 
 
 
