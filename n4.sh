@@ -1,1 +1,0 @@
-python3 ott.py n3 n5 server
