@@ -1,12 +1,14 @@
-import socket
-import threading
-import signal
+import socket, threading, signal
+
+from VideoStream import VideoStream
+from RtpPacket import RtpPacket
 
 from packet import Packet
 import globals
-import time
 
-import sys
+import sys, traceback
+
+import time
 
 class Server:
     def __init__(self,port,annport,params):
@@ -119,11 +121,47 @@ class Server:
             x.start()
             
 
-            
+    def makeRtp(self, payload, frameNbr):
+        """RTP-packetize the video data."""
+        version = 2
+        padding = 0
+        extension = 0
+        cc = 0
+        marker = 0
+        pt = 26 # MJPEG type
+        seqnum = frameNbr
+        ssrc = 0
+
+        rtpPacket = RtpPacket()
+
+        rtpPacket.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
+
+        return rtpPacket.getPacket()   
             
          
 
     def sendData(self,name):
+        stream = VideoStream("files/test.Mjpeg")
+        while True:    
+            time.sleep(0.033)
+            data = stream.nextFrame()
+
+            if data:
+                frameNumber = stream.frameNbr()
+                for ip in self.vizinhos:
+                    if self.vizinhos[ip][0] == 1 and self.vizinhos[ip][1] == 1:
+                        try:
+                            #self.vizinhos[ip][3].sendall(bytePayload)
+                            self.rtpSocket.sendto(self.makeRtp(data,frameNumber), (ip,65432))
+                            print("[" + name + "] sended ...")
+                        except:
+                            print("Connection Error")
+                            print('-'*60)
+                            traceback.print_exc(file=sys.stdout)
+                            print('-'*60)
+                    
+        
+        """
         file = open("files/starwars.txt",'r')
         lines = file.readlines()
         output = ""
@@ -149,6 +187,7 @@ class Server:
                 i = 0
                 
                 time.sleep(DELAY)
+        """
     def inputWorker(self,name):
         while True:
             inp = input("server>> ")

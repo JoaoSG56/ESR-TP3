@@ -4,13 +4,17 @@ from PIL import Image, ImageTk
 
 import socket, threading
 import time, sys,signal
+from RtpPacket import RtpPacket
 
 
 from packet import Packet
 from table import Table
-from sharedStack import StackShared
+import random
 
 import globals
+
+CACHE_FILE_NAME = ".cache-"
+CACHE_FILE_EXT = ".jpg"
 
 
 class Node:
@@ -18,6 +22,8 @@ class Node:
         self.master = master
         self.master.protocol("WM_DELETE_WINDOW", self.handler)
         self.createWidgets()
+        self.frameNbr = 0
+        self.session = socket.gethostname()
         
         
         
@@ -64,7 +70,7 @@ class Node:
         
         self.threads = []
         self.downloading = False
-        self.stack = StackShared()
+        self.stack = []
 
     def createWidgets(self):
         """Build GUI."""
@@ -286,78 +292,59 @@ class Node:
             thread.daemon = True
             thread.start()
             
-    
-    
-                       
-    def dataReceiverWorker(self,name,conn):
-        while data:=conn.recv(1024):
-            if data: 
-                packet = Packet(bytes=data)
-                if packet.type == globals.DATA: # Send from Server
-                    
-                    if self.downloading:
-                        # Caso haja packets com o mesmo id, remover repetidos e cancelar rota alternativa
-                        if self.stack.containsID(packet.getPacketID()):
-                            globals.printError(name,"REPETIDOOOOOOOOOOOOO")
-                            sh = self.table.get_sec_hop() 
-                            if sh and self.downloading:
-                                s = self.vizinhos[sh][2]
-                                print("stoping: " + sh)
-                                s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=sh,port=23456,payload="").packetToBytes())
-                                globals.printDebug(name,"sended ...")
-                            else:
-                                globals.printDebug(name,"não devia entrar aqui")
-                        print(packet.getPayload(),end='')
-                    self.stack.push(packet.getPacketID())   
-                    for ip in self.vizinhos:
-                        if self.vizinhos[ip][1] == 1:
-                            globals.printDebug("dataWorker","found rota ativa ...")
-                            self.vizinhos[ip][3].sendto(data, (ip,65432))
-                            globals.printDebug("dataWorker","sended ...")
-                            
-                else:
-                    print("WHAAAAAAAAAAAAAT?")
-                    break
-        print("SAI CARALHOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
+    def writeFrame(self, data):
+        """Write the received frame to a temp image file. Return the image file."""
+        cachename = CACHE_FILE_NAME + self.session + CACHE_FILE_EXT
+        file = open(cachename, "wb")
+        file.write(data)
+        file.close()
+
+        return cachename
+
+    def updateMovie(self, imageFile):
+        """Update the image file as video frame in the GUI."""
+        photo = ImageTk.PhotoImage(Image.open(imageFile))
+        self.label.configure(image = photo, height=288)
+        self.label.image = photo
  
-    
     def dataWorker(self,name):     
         while True:
-            #self.dataSocket.listen()
-            #conn, addr = self.dataSocket.accept()
-            data, addr = self.dataSocket.recvfrom(1024)
-            print('[dataWorker] Connected by', addr)
+
+            data, addr = self.dataSocket.recvfrom(20480)
+            
+            #print('[dataWorker] Connected by', addr[0])
             if data: 
-                packet = Packet(bytes=data)
-                if packet.type == globals.DATA: # Send from Server
-                    if self.downloading:
-                        # Caso haja packets com o mesmo id, remover repetidos e cancelar rota alternativa
-                        if self.stack.containsID(packet.getPacketID()):
-                            globals.printError(name,"REPETIDOOOOOOOOOOOOO")
-                            sh = self.table.get_sec_hop() 
-                            if sh and self.downloading:
-                                s = self.vizinhos[sh][2]
-                                print("stoping: " + sh)
-                                s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=sh,port=23456,payload="").packetToBytes())
+                
+                if addr[0] not in self.stack:
+                    self.stack.append(addr[0])
+                    if len(self.stack) > 1:
+                        globals.printError(name,"2 ips diferentes!!!!")
+                        sh = self.table.get_next_hop() 
+                        for ip in self.stack:
+                            if ip != sh:
+                                s = self.vizinhos[ip][2]
+                                print("stoping: " + ip)
+                                s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=ip,port=23456,payload="").packetToBytes())
                                 globals.printDebug(name,"sended ...")
-                            else:
-                                globals.printDebug(name,"não devia entrar aqui")
-                        print(packet.getPayload(),end='')
-                    self.stack.push(packet.getPacketID())   
-                    for ip in self.vizinhos:
-                        if self.vizinhos[ip][1] == 1:
-                            globals.printDebug("dataWorker","found rota ativa ...")
-                            self.vizinhos[ip][3].sendto(data, (ip,65432))
-                            globals.printDebug("dataWorker","sended ...")
-                            
-                else:
-                    print("WHAAAAAAAAAAAAAT?")
-                    break
-            #datareceiver = threading.Thread(target=self.dataReceiverWorker,args=("dataReceiverWorker",conn,))
-            #self.threads.append(datareceiver)
-            #datareceiver.daemon = True
-            #datareceiver.start()
-     
+                                self.stack.remove(ip)
+                            socket.gethostbyname
+                    
+                if self.downloading:
+                    rtpPacket = RtpPacket()
+                    rtpPacket.decode(data)
+                    
+                    currFrameNbr = rtpPacket.seqNum()
+                    self.frameNbr = currFrameNbr
+                    self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+                
+                    
+                for ip in self.vizinhos:
+                    if self.vizinhos[ip][1] == 1:
+                        globals.printDebug("dataWorker","found rota ativa ...")
+                        self.vizinhos[ip][3].sendto(data, (ip,65432))
+                        globals.printDebug("dataWorker","sended ...")
+            
+         
       
     def requestVideo(self):
         if not self.downloading:
@@ -429,10 +416,10 @@ class Node:
     def handler(self):
 	    #self.pauseMovie()
         if tkMessageBox.askokcancel("Quit?", "Are you sure you want to quit?"):
-            self.signalINT_handler()
+            self.signalINT_handler(None,None)
         else: # When the user presses cancel, resume playing.
-            self.playMovie()
-
+            #self.playMovie()
+            pass
     
     def start(self):
         signal.signal(signal.SIGINT, self.signalINT_handler)

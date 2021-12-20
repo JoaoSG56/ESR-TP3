@@ -39,7 +39,7 @@ class Packet:
         print(self.payload)
 
     def packetToBytes(self):
-        message = ";".join([str(self.packetID),str(self.type),self.ip_origem,self.ip_destination,str(self.port),str(self.payload)])
+        message = (";".join([str(self.packetID),str(self.type),self.ip_origem,self.ip_destination,str(self.port),str(self.payload)])) + ";"
         return message.encode('utf8')
     
     def toString(self):
