@@ -1,14 +1,14 @@
-import socket
-import threading
-import signal
+import socket, threading, signal
+
+from VideoStream import VideoStream
+from RtpPacket import RtpPacket
 
 from packet import Packet
-from table import Table
-from debugger import Debugger
 import globals
-import time
 
-import sys
+import sys, traceback
+
+import time
 
 class Server:
     def __init__(self,port,annport,params):
@@ -31,6 +31,8 @@ class Server:
             self.vizinhos[ip] = [0,0,None,None]
         self.annSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
         self.annSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
+        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.threads = []
             
       
@@ -57,16 +59,16 @@ class Server:
             print(ip)
             try:
                 self.vizinhos[ip][2] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.vizinhos[ip][3] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                #self.vizinhos[ip][3] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 
                 self.vizinhos[ip][2].connect((ip,23456))
                 print("connected Announcement")
-                self.vizinhos[ip][3].connect((ip,65432))
-                print("connected Datas")
+                #self.vizinhos[ip][3].connect((ip,65432))
+                #print("connected Datas")
                 
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
-                self.vizinhos[ip][2].sendall(Packet(type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
+                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
                 print("sended ...")
                 #self.vizinhos[ipv][2].close()
             
@@ -88,12 +90,12 @@ class Server:
                 print(self.vizinhos)
                 self.vizinhos[ip][2].connect((ip,23456))
                 print("connected Announcement")
-                self.vizinhos[ip][3].connect((ip,65432))
-                print("connected Datas")
+                #self.vizinhos[ip][3].connect((ip,65432))
+                #print("connected Datas")
                 
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
-                self.vizinhos[ip][2].sendall(Packet(type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
+                self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
                 print("sended ...")
             elif packet.type == globals.REQUEST:
                 globals.printDebug(name,"Updated to active")
@@ -105,13 +107,11 @@ class Server:
     
 #   Worker for thread
 #   Listens for connections and decides what to do depending on type of the packet    
-    def serverListenerWorker(self,name):     
-        self.announce()
-        
-        
+    def serverListenerWorker(self,name):    
         self.annSocket.bind((self.host, self.annport))
-
+    
         while True:
+            print(self.annSocket)
             self.annSocket.listen()
             conn, addr = self.annSocket.accept()
             print('[PORTLISTENER] Connected by', addr)
@@ -121,33 +121,81 @@ class Server:
             x.start()
             
 
-            
+    def makeRtp(self, payload, frameNbr):
+        """RTP-packetize the video data."""
+        version = 2
+        padding = 0
+        extension = 0
+        cc = 0
+        marker = 0
+        pt = 26 # MJPEG type
+        seqnum = frameNbr
+        ssrc = 0
+
+        rtpPacket = RtpPacket()
+
+        rtpPacket.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, self.host, payload)
+
+        return rtpPacket.getPacket()   
             
          
 
     def sendData(self,name):
+        stream = VideoStream("files/test.Mjpeg")
+        while True:    
+            time.sleep(0.033)
+            data = stream.nextFrame()
+
+            if data:
+                frameNumber = stream.frameNbr()
+                for ip in self.vizinhos:
+                    if self.vizinhos[ip][0] == 1 and self.vizinhos[ip][1] == 1:
+                        try:
+                            #self.vizinhos[ip][3].sendall(bytePayload)
+                            self.rtpSocket.sendto(self.makeRtp(data,frameNumber), (ip,65432))
+                            print("[" + name + "] sended ...")
+                        except:
+                            print("Connection Error")
+                            print('-'*60)
+                            traceback.print_exc(file=sys.stdout)
+                            print('-'*60)
+                    
+        
+        """
         file = open("files/starwars.txt",'r')
         lines = file.readlines()
         output = ""
         LINES_PER_FRAME = 14
         DELAY = 0.47
         i = 0
+        packet_id = 1
         for line in lines:
            
             if i < LINES_PER_FRAME:
                 output = output + line
                 i += 1
             else:
-                bytePayload = Packet(type=3,ip_origem=self.host,ip_destino="0.0.0.0",port=65432,payload=output).packetToBytes()
+                bytePayload = Packet(packetID=packet_id,type=3,ip_origem=self.host,ip_destino="0.0.0.0",port=65432,payload=output).packetToBytes()
+                packet_id += 1
                 for ip in self.vizinhos:
                     if self.vizinhos[ip][0] == 1 and self.vizinhos[ip][1] == 1:
-                        self.vizinhos[ip][3].sendall(bytePayload)
+                        #self.vizinhos[ip][3].sendall(bytePayload)
+                        self.rtpSocket.sendto(bytePayload, (ip,65432))
                         print("[" + name + "] sended ...")
                      
                 output = ""
                 i = 0
                 
                 time.sleep(DELAY)
+        """
+    def inputWorker(self,name):
+        while True:
+            inp = input("server>> ")
+            if inp == "help":
+                print("commands:\nprint")
+            elif inp == "print":
+                print(self.vizinhos)
+
           
                 
     def start(self):
@@ -164,8 +212,12 @@ class Server:
         sendDataThread.daemon = True
         sendDataThread.start()
         
-       
+        inputThread = threading.Thread(target=self.inputWorker,args=("inputThread",))
+        self.threads.append(inputThread)
+        inputThread.daemon=True
+        inputThread.start()
         
+        self.announce()
         
         print("[Server] Listening at " + self.host)
         

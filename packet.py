@@ -2,6 +2,7 @@ import json
 class Packet:
     def __init__(self,**kwargs):
         if "bytes" not in kwargs:
+            self.packetID = kwargs.get("packetID",None)
             self.type = kwargs.get("type",None)
             self.ip_origem = kwargs.get("ip_origem",None)
             self.ip_destination = kwargs.get("ip_destino",None)
@@ -13,6 +14,9 @@ class Packet:
 
     def getType(self):
         return self.type
+    
+    def getPacketID(self):
+        return self.packetID
 
     def getIpDestino(self):
         return self.ip_destination
@@ -25,22 +29,21 @@ class Packet:
 
     def bytesToPacket(self,bytes):
         message = bytes.decode('utf8').split(';')
-        self.type = message[0]
-        self.ip_origem = message[1]
-        self.ip_destination = message[2]
-        self.port = message[3]
-        self.payload = message[4]
+        self.packetID = message[0]
+        self.type = message[1]
+        self.ip_origem = message[2]
+        self.ip_destination = message[3]
+        self.port = message[4]
+        self.payload = message[5]
+        print("payload:")
+        print(self.payload)
 
     def packetToBytes(self):
-        if type(self.payload) is dict:
-            print("entrou onde NÃO devia")
-            message = ";".join([str(self.type),self.ip_origem,self.ip_destination,str(self.port),json.dumps(self.payload)])
-        else:
-            message = ";".join([str(self.type),self.ip_origem,self.ip_destination,str(self.port),str(self.payload)])
+        message = (";".join([str(self.packetID),str(self.type),self.ip_origem,self.ip_destination,str(self.port),str(self.payload)])) + ";"
         return message.encode('utf8')
     
     def toString(self):
-        return ";".join([str(self.type),self.ip_origem,self.ip_destination,str(self.port),str(self.payload)])
+        return ";".join([str(self.packetID),str(self.type),self.ip_origem,self.ip_destination,str(self.port),str(self.payload)])
 
 
     def setIpDestino(self,ip):
@@ -51,6 +54,7 @@ class Packet:
         
         
     def printa(self):
+        print(self.packetID)
         print(self.type)
         print(self.ip_origem)
         print(self.ip_destination)
