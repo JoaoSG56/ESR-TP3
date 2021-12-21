@@ -56,6 +56,11 @@ class Table:
     def hasRoute(self):
         return self.table["primary"]["next_hop"]
     
+    def removePrimaryRoute(self):
+        self.table["primary"]["next_hop"] = None
+        self.table["primary"]["cost"] = None
+        self.changeOrder()
+    
     def getRouteCost(self):
         return self.table["primary"]["cost"]
     
