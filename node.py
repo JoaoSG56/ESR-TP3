@@ -20,6 +20,7 @@ CACHE_FILE_EXT = ".jpg"
 class Node:
     def __init__(self,params,master):
         self.master = master
+        
         self.master.protocol("WM_DELETE_WINDOW", self.handler)
         self.createWidgets()
         self.frameNbr = 0
@@ -52,8 +53,8 @@ class Node:
             ip = socket.gethostbyname(name)
             self.vizinhos[ip] = [0,0,None,None]
             
+        
         self.host = socket.gethostbyname(socket.gethostname())
-    
         
         AddressPortData = (self.host,65432)
         self.dataSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -151,6 +152,10 @@ class Node:
                 # announce
                 self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload=str(cost)).packetToBytes())
         
+    def announceTo(self,ipToAnnounce,cost):
+        if self.vizinhos[ipToAnnounce][0]:    
+            self.vizinhos[ipToAnnounce][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ipToAnnounce,port=23456,payload=str(cost)).packetToBytes())
+
     
     def announcementReceiverWorker(self,name,conn):
         ipFrom = None
@@ -169,16 +174,16 @@ class Node:
                         if self.vizinhos[ipFrom][2] is None:
                             self.vizinhos[ipFrom][2] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         self.vizinhos[ipFrom][2].connect((ipFrom,23456))
-                        globals.printDebug(name,"connected")
+                        globals.printDebug("connected",name)
                         if self.table.hasRoute():
                             cost = self.table.getRouteCost()
-                            globals.printDebug(name,cost)
+                            globals.printDebug(cost,name)
                             if cost is not None:
                                 print("tem cost: " + str(cost))
 
                                 p = Packet(packetID=0,type=2,ip_origem=self.host,ip_destino=ipFrom,port=23456,payload=str(cost))
                                 self.vizinhos[ipFrom][2].sendall(p.packetToBytes())
-                                globals.printDebug(name,"sended ...")
+                                globals.printDebug("sended ...",name)
                             else:
                                 globals.printDebug("annWorker","cost é none")
                     else:
@@ -187,36 +192,32 @@ class Node:
                     
                 elif packet.type == globals.ANNOUNCEMENT:
                     if not self.vizinhos[ipFrom][0]:
-                        globals.printDebug(name,"Server connected")
+                        globals.printDebug("Server connected",name)
                         self.vizinhos[ipFrom][0] = 1
                         if self.vizinhos[ipFrom][2] is None:
                             self.vizinhos[ipFrom][2] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         print(self.vizinhos[ipFrom][2])
                         self.vizinhos[ipFrom][2].connect((ipFrom,23456))
-                    globals.printDebug("annworker","Type announcement")
+                    globals.printDebug("Type announcement","annworker")
                     changed = self.table.updateTable(ipFrom,int(packet.getPayload())+1)
                     if changed == 1:
                         # anuncia a todos
 
                         ## Se rota melhor então muda a cena
-                        if self.downloading:
+                        if (self.downloading or self.hasFluxo()):            
                             next = self.table.get_next_hop()
-                            print(next)
                             if self.vizinhos[next][0]:
-                                
                                 try:
-                                    if self.hasFluxo():
-                                        globals.printDebug(name,"tem fluxo")
-                                    else:
-                                        globals.printDebug(name,"não tem fluxo")
-                                        self.vizinhos[next][2].sendall(Packet(packetID=0,type=4,ip_origem=self.host,ip_destino=next,port=23456,payload="").packetToBytes())
-                                        globals.printDebug(name,"sended ...")
+                                    self.vizinhos[next][2].sendall(Packet(packetID=0,type=4,ip_origem=self.host,ip_destino=next,port=23456,payload="").packetToBytes())
+                                    globals.printDebug("sended ...",name)
+                                    
                                     
                                 except socket.error as exc:
                                     print(f"[PORTA 65432] Caught exception socket.error : {exc}")
-                        globals.printDebug("annworker","mudou a rota primária")
+                        globals.printDebug("mudou a rota primária","annworker")
                         self.announceChange(ipFrom,self.table.getRouteCost())
-
+                    elif int(packet.getPayload()) > (self.table.getRouteCost()+1):
+                        self.announceTo(ipFrom,self.table.getRouteCost())
                 elif packet.type == globals.REQUEST:
                     # request
                     if self.table.hasRoute():
@@ -224,8 +225,6 @@ class Node:
                         print("tenho rota ativa")
                         # request Server
                         next = self.table.get_next_hop()
-                        print(next)
-                        print(self.vizinhos[next][0])
                         if self.vizinhos[next][0]:
                             
                             try:
@@ -237,11 +236,11 @@ class Node:
                                 s = self.vizinhos[next][2]
 
                                 if self.hasFluxo():
-                                    globals.printDebug(name,"tem fluxo")
+                                    globals.printDebug("tem fluxo",name)
                                     self.vizinhos[ipFrom][1] = 1
                                 else:
                                     s.sendall(Packet(packetID=0,type=4,ip_origem=self.host,ip_destino=next,port=23456,payload="").packetToBytes())
-                                    globals.printDebug(name,"sended ...")
+                                    globals.printDebug("sended ...",name)
                                     self.vizinhos[ipFrom][1] = 1
                                 
                             except socket.error as exc:
@@ -251,15 +250,15 @@ class Node:
                     self.vizinhos[packet.getIpOrigem()][1] = 0 # rota inativa
                     self.vizinhos[packet.getIpOrigem()][3].close()
                     if not self.hasFluxo():
-                        globals.printDebug(name,"Existe servidor")
+                        globals.printDebug("Existe servidor",name)
                         s = self.vizinhos[self.table.get_next_hop()][2]
                         print("ip2: " + self.table.get_next_hop())
                         s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
-                        globals.printDebug(name,"sended ...")
+                        globals.printDebug("sended ...",name)
                             
                     else:
                         print("não tenho rota ativa")
-        globals.printDebug(name,"Ligação caiu")
+        globals.printDebug("Ligação caiu",name)
         if ipFrom is not None and ipFrom in self.vizinhos:
             self.vizinhos[ipFrom][0] = 0
             self.vizinhos[ipFrom][1] = 0
@@ -274,10 +273,10 @@ class Node:
                 self.stack.clear()
                 self.table.removePrimaryRoute()
                 if self.table.hasRoute():
-                    self.downloading = False
-                    self.requestVideo()
+                    if self.hasFluxo() or self.downloading: # se tiver de receber data
+                        self.requestData()
                 else:
-                    globals.printError(name,"No Route Available")
+                    globals.printError("No Route Available",name)
                     self.downloading = False
                 pass
             elif not self.hasFluxo() and not self.downloading:
@@ -285,7 +284,7 @@ class Node:
                 globals.printDebug("Stoping download ... No flux")
                 self.sendStopRequest()
         else:
-            globals.printError(name,"what?")
+            globals.printError("what?",name)
     
     
     def sendStopRequest(self):
@@ -334,14 +333,14 @@ class Node:
                 if ip_O not in self.stack:
                     self.stack.append(ip_O)
                     if len(self.stack) > 1:
-                        globals.printError(name,"2 ips diferentes!!!!")
+                        globals.printError("2 ips diferentes!!!!",name)
                         sh = self.table.get_next_hop() 
                         for ip in self.stack:
                             if ip != sh:
                                 s = self.vizinhos[ip][2]
                                 print("stoping: " + ip)
                                 s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=ip,port=23456,payload="").packetToBytes())
-                                globals.printDebug(name,"sended ...")
+                                globals.printDebug("sended ...",name)
                                 self.stack.remove(ip)
                             socket.gethostbyname
                     
@@ -356,20 +355,25 @@ class Node:
                 newData = rtpPacket.getPacket()
                 for ip in self.vizinhos:
                     if self.vizinhos[ip][1] == 1:
-                        globals.printDebug("dataWorker","found rota ativa ...")
+                        globals.printDebug("found rota ativa ...","dataWorker")
                         self.vizinhos[ip][3].sendto(newData, (ip,65432))
-                        globals.printDebug("dataWorker","sended ...")
+                        globals.printDebug("sended ...","dataWorker")
             
          
+      
+    def requestData(self):
+        globals.printDebug("Existe servidor")
+        s = self.vizinhos[self.table.get_next_hop()][2]
+        s.sendall(Packet(packetID=0,type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
+        globals.printDebug("sended ...")
+     
       
     def requestVideo(self):
         if not self.downloading:
             if self.table.hasRoute():
-                if not self.hasFluxo():
+                if not self.stack:
                     globals.printDebug("Existe servidor")
                     s = self.vizinhos[self.table.get_next_hop()][2]
-                    print("ip2: " + self.table.get_next_hop())
-                    print(s)
                     s.sendall(Packet(packetID=0,type=globals.REQUEST,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
                     globals.printDebug("sended ...")
                 self.downloading = True
@@ -383,21 +387,42 @@ class Node:
                 if not self.hasFluxo():
                     self.sendStopRequest()
                 self.downloading = False
-                """
-                if not self.hasFluxo():
-                    s = self.vizinhos[self.table.get_next_hop()][2]
-                    print("ip2: " + self.table.get_next_hop())
-                    s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
-                    globals.printDebug("sended ...")
-                self.downloading = False
-                """
+                self.stack.clear()
+
             else:
                 globals.printDebug("não devia entrar aqui")
     
     def debug(self):
         self.table.print()
-        print("downloading: " + str(self.downloading))
-        print(self.vizinhos)
+        globals.printDebug("downloading: ",end="")
+        if self.downloading:
+            globals.printSuccess(str(self.downloading))
+        else:
+            globals.printError(str(self.downloading))
+        print(24*'*' + " VIZINHOS " + 24*'*')
+        for i in self.vizinhos:
+            globals.printDebug("ip: ",end="")
+            globals.printSuccess(i)
+            
+            globals.printDebug("\tonline: ",end="")
+            globals.printSuccess(self.vizinhos[i][0])
+            
+            globals.printDebug("\tactive: ",end="")
+            globals.printSuccess(self.vizinhos[i][1])
+            
+            globals.printDebug("\tsocket1: ",end="")
+            if self.vizinhos[i][2]:
+                globals.printSuccess("True")
+            else:
+                globals.printError("False")
+            
+            globals.printDebug("\tsocket2: ",end="")
+            if self.vizinhos[i][3]:
+                globals.printSuccess("True")
+            else:
+                globals.printError("False")
+        
+        print(58*'*')
 
     def handler(self):
 	    #self.pauseMovie()

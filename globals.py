@@ -16,11 +16,20 @@ BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 INFO = '\33[93m'
 
-def printDebug(who="",text=""):
-    print(f" {INFO}[{who}]{text}{ENDC}")
+def printDebug(text,who="",end="\n"):
+    if who=="":
+        print(f"{INFO}{text}{ENDC}",end=end)
+    else:
+        print(f"{INFO}[{who}]{text}{ENDC}",end=end)
     
-def printSuccess(who="",text=""):
-    print(f" {OKGREEN}[{who}]{text}{ENDC}")
+def printSuccess(text,who="",end="\n"):
+    if who=="":
+        print(f"{OKGREEN}{text}{ENDC}",end=end)
+    else:
+        print(f"{OKGREEN}[{who}]{text}{ENDC}",end=end)
     
-def printError(who="",text=""):
-    print(f" {FAIL}[{who}]{text}{ENDC}")
+def printError(text,who="",end="\n"):
+    if who=="":
+        print(f"{FAIL}{text}{ENDC}",end=end)
+    else:
+        print(f"{FAIL}[{who}]{text}{ENDC}",end=end)

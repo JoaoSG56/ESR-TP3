@@ -2,6 +2,7 @@ import sys
 from server import Server
 from node import Node
 from tkinter import Tk
+import socket
 
 
 if __name__ == "__main__":
@@ -17,7 +18,7 @@ if __name__ == "__main__":
     elif len(params) > 0:
         root = Tk()
         node = Node(params,root)
-        node.master.title("RTPClient")
+        node.master.title("RTPClient " + socket.gethostname())
         root.mainloop()
         #node.start()
         """

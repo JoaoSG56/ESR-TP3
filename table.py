@@ -1,3 +1,4 @@
+import globals
 class Table:
     """
     table:
@@ -31,22 +32,33 @@ class Table:
     # addr -> de onde veio a nova table
     # host -> self ip
     def updateTable(self,next_hop,cost):
+        toChange = 0
         if self.hasRoute():
-            toChange = 0
-            if cost < self.table["primary"]["cost"]:
-                self.changeOrder()
-                toChange = 1
-            elif not self.table["secondary"]["cost"]:
-                toChange = 2
-            elif cost < self.table["secondary"]["cost"]:
-                toChange = 2
+            # verificar se o ip encontra na tabela, e atualizar o cost caso seja esse o caso
+            if self.table["primary"]["next_hop"] == next_hop:
+                if self.table["primary"]["cost"] > cost:
+                    self.table["primary"]["cost"] = cost
+                    toChange = 1
                 
-            if toChange == 1:
-                self.table["primary"]["next_hop"] = next_hop
-                self.table["primary"]["cost"] = cost
-            elif toChange == 2:
+            elif self.table["secondary"]["next_hop"] == next_hop:
+                if self.table["secondary"]["cost"] > cost:
+                    self.table["secondary"]["cost"] = cost
+                    toChange = 2
+            
+            # caso não haja secundário, preenche
+            # caso não se verifique, verificar para o secundário e subsituir caso compense
+            elif self.table["secondary"]["next_hop"] is None or cost < self.table["secondary"]["cost"]:
                 self.table["secondary"]["next_hop"] = next_hop
                 self.table["secondary"]["cost"] = cost
+                toChange = 2
+                
+            # ordenar a tabela por ordem de menor cost
+            if toChange != 0:
+                # secundário melhor que primário
+                if self.table["secondary"]["cost"] < self.table["primary"]["cost"]:
+                    self.changeOrder()
+                    toChange = 1
+
         else:
             self.table["primary"]["next_hop"] = next_hop
             self.table["primary"]["cost"] = cost
@@ -73,5 +85,25 @@ class Table:
         self.table["secondary"] = temp
         
     def print(self):
-        print(self.table)
+        print(24*'*' + ' TABLE ' + 24*'*')
+        globals.printDebug("Rota Primaria:\n\tnext_hop: ",end="")
+        if self.table["primary"]["next_hop"]:
+            globals.printSuccess(str(self.table["primary"]["next_hop"]))
+            globals.printDebug("\tcost: ",end="")
+            globals.printSuccess(str(self.table["primary"]["cost"]))
+        else:
+            globals.printError("None")
+            globals.printDebug("\tcost: ",end="")
+            globals.printError("None")
+        
+        globals.printDebug("Rota Secundaria:\n\tnext_hop: ",end="")
+        if self.table["secondary"]["next_hop"]:
+            globals.printSuccess(str(self.table["secondary"]["next_hop"]))
+            globals.printDebug("\tcost: ",end="")
+            globals.printSuccess(str(self.table["secondary"]["cost"]))
+        else:
+            globals.printError("None")
+            globals.printDebug("\tcost: ",end="")
+            globals.printError("None")
+        print(55*'*')
         

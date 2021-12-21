@@ -94,12 +94,12 @@ class Server:
                 self.vizinhos[ipFrom][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ipFrom,port=23456,payload="0").packetToBytes())
                 print("sended ...")
             elif packet.type == globals.REQUEST:
-                globals.printDebug(name,"Updated to active")
+                globals.printDebug("Updated to active",name)
                 self.vizinhos[ipFrom][1] = 1
             elif packet.type == globals.STOP:
-                globals.printDebug(name,"Updated to inactive")
+                globals.printDebug("Updated to inactive",name)
                 self.vizinhos[ipFrom][1] = 0
-        globals.printDebug(name,"Ligação caiu")
+        globals.printDebug("Ligação caiu",name)
         self.vizinhos[ipFrom][0] = 0
         self.vizinhos[ipFrom][1] = 0
         if self.vizinhos[ipFrom][2] is not None:
