@@ -277,7 +277,7 @@ class Node:
                         self.requestData()
                 else:
                     globals.printError("No Route Available",name)
-                    self.downloading = False
+                    #self.downloading = False
                 pass
             elif not self.hasFluxo() and not self.downloading:
                 # do stop request
