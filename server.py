@@ -143,9 +143,10 @@ class Server:
          
 
     def sendData(self,name):
-        stream = VideoStream("files/test.Mjpeg")
+        stream = VideoStream("files/movie.Mjpeg")
         while True:    
-            time.sleep(0.033)
+            #time.sleep(0.075)
+            time.sleep(0.04)
             data = stream.nextFrame()
 
             if data:
