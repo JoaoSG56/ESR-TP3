@@ -63,7 +63,7 @@ class Server:
                 self.vizinhos[ip][0] = 1
                 self.vizinhos[ip][1] = 0
                 self.vizinhos[ip][2].sendall(Packet(packetID=0,type=globals.ANNOUNCEMENT,ip_origem=self.host,ip_destino=ip,port=23456,payload="0").packetToBytes())
-                print("sended ...")
+                #print("sended ...")
                 #self.vizinhos[ipv][2].close()
             
             except socket.error as exc:

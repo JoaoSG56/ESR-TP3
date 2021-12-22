@@ -73,11 +73,16 @@ class Table:
         self.table["primary"]["cost"] = None
         self.changeOrder()
     
+    def removeSecondaryRoute(self):
+        self.table["secondary"]["next_hop"] = None
+        self.table["secondary"]["cost"] = None
+    
+    def getSecondRouteCost(self):
+        return self.table["secondary"]["cost"]
+    
     def getRouteCost(self):
         return self.table["primary"]["cost"]
-    
-    def getRouteNextHop(self):
-        return self.table["primary"]["next_hop"]
+
     
     def changeOrder(self):
         temp = self.table["primary"]

@@ -165,9 +165,9 @@ class Node:
         while data := conn.recv(1024):
             if data: 
                 packet = Packet(bytes=data)
-                print("\n\n")
-                packet.printa()
-                print("\n\n")
+                #print("\n\n")
+                #packet.printa()
+                #print("\n\n")
                 
                 if ipFrom == None:
                     ipFrom = packet.getIpOrigem()
@@ -182,8 +182,6 @@ class Node:
                             cost = self.table.getRouteCost()
                             globals.printDebug(cost,name)
                             if cost is not None:
-                                print("tem cost: " + str(cost))
-
                                 p = Packet(packetID=0,type=2,ip_origem=self.host,ip_destino=ipFrom,port=23456,payload=str(cost))
                                 self.vizinhos[ipFrom][2].sendall(p.packetToBytes())
                                 globals.printDebug("sended ...",name)
@@ -199,7 +197,6 @@ class Node:
                         self.vizinhos[ipFrom][0] = 1
                         if self.vizinhos[ipFrom][2] is None:
                             self.vizinhos[ipFrom][2] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        print(self.vizinhos[ipFrom][2])
                         self.vizinhos[ipFrom][2].connect((ipFrom,23456))
                     globals.printDebug("Type announcement","annworker")
                     changed = self.table.updateTable(ipFrom,int(packet.getPayload())+1)
@@ -218,9 +215,16 @@ class Node:
                                 except socket.error as exc:
                                     print(f"[PORTA 65432] Caught exception socket.error : {exc}")
                         globals.printDebug("mudou a rota primária","annworker")
+                    
+                    
+                    if changed == 1:
                         self.announceChange(ipFrom,self.table.getRouteCost())
-                    elif int(packet.getPayload()) > (self.table.getRouteCost()+1):
+                    elif changed == 2:
+                        self.announceChange(ipFrom,self.table.getSecondRouteCost())
+                    if int(packet.getPayload()) > (self.table.getRouteCost()+1):
                         self.announceTo(ipFrom,self.table.getRouteCost())
+                        
+                        
                 elif packet.type == globals.REQUEST:
                     # request
                     if self.table.hasRoute():
@@ -255,7 +259,6 @@ class Node:
                     if not self.hasFluxo():
                         globals.printDebug("Existe servidor",name)
                         s = self.vizinhos[self.table.get_next_hop()][2]
-                        print("ip2: " + self.table.get_next_hop())
                         s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
                         globals.printDebug("sended ...",name)
                             
@@ -264,7 +267,13 @@ class Node:
         globals.printDebug("Ligação caiu",name)
         if ipFrom is not None and ipFrom in self.vizinhos:
             self.vizinhos[ipFrom][0] = 0
-            self.vizinhos[ipFrom][1] = 0
+            if self.vizinhos[ipFrom][1]:
+                self.vizinhos[ipFrom][1] = 0
+                if not self.hasFluxo() and not self.downloading:
+                # do stop request
+                    globals.printDebug("Stoping download ... No flux")
+                    self.sendStopRequest()
+            
             if self.vizinhos[ipFrom][2] is not None:
                 self.vizinhos[ipFrom][2].close()
                 self.vizinhos[ipFrom][2] = None
@@ -281,18 +290,14 @@ class Node:
                 else:
                     globals.printError("No Route Available",name)
                     #self.downloading = False
-                pass
-            elif not self.hasFluxo() and not self.downloading:
-                # do stop request
-                globals.printDebug("Stoping download ... No flux")
-                self.sendStopRequest()
+            elif ipFrom == self.table.get_sec_hop():
+                self.table.removeSecondaryRoute()
         else:
             globals.printError("what?",name)
     
     
     def sendStopRequest(self):
         s = self.vizinhos[self.table.get_next_hop()][2]
-        print("ip2: " + self.table.get_next_hop())
         s.sendall(Packet(packetID=0,type=globals.STOP,ip_origem=self.host,ip_destino=self.table.get_next_hop(),port=23456,payload="").packetToBytes())
         globals.printDebug("sended ...")
        
@@ -440,9 +445,7 @@ class Node:
 	    #self.pauseMovie()
         if tkMessageBox.askokcancel("Quit?", "Are you sure you want to quit?"):
             self.signalINT_handler(None,None)
-        else: # When the user presses cancel, resume playing.
-            #self.playMovie()
-            pass
+
     
     def start(self):
         signal.signal(signal.SIGINT, self.signalINT_handler)
