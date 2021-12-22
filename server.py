@@ -154,6 +154,7 @@ class Server:
                 for ip in self.vizinhos:
                     if self.vizinhos[ip][0] == 1 and self.vizinhos[ip][1] == 1:
                         try:
+                            print(len(data))
                             self.rtpSocket.sendto(self.makeRtp(data,frameNumber), (ip,65432))
                             print("[" + name + "] sended ...")
                         except:

@@ -1,6 +1,9 @@
+import base64
 from tkinter import *
 import tkinter.messagebox as tkMessageBox
 from PIL import Image, ImageTk
+import cv2
+import numpy as np
 
 import socket, threading
 import time, sys,signal
@@ -309,6 +312,14 @@ class Node:
     def writeFrame(self, data):
         """Write the received frame to a temp image file. Return the image file."""
         cachename = CACHE_FILE_NAME + self.session + CACHE_FILE_EXT
+        
+        """
+        d = base64.b64decode(data,' /')
+        npdata = np.fromstring(d,np.uint8)
+        frame = cv2.imdecode(npdata,1)
+        cv2.imwrite(cachename,frame)
+        """
+        
         file = open(cachename, "wb")
         file.write(data)
         file.close()
@@ -348,8 +359,9 @@ class Node:
                     
                     
                     currFrameNbr = rtpPacket.seqNum()
-                    self.frameNbr = currFrameNbr
-                    self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+                    if currFrameNbr > self.frameNbr:
+                        self.frameNbr = currFrameNbr
+                        self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
                 
                 rtpPacket.setIpOrigem(self.host)
                 newData = rtpPacket.getPacket()
